@@ -1,0 +1,18 @@
+{
+  "loops": 10,
+  "wait_between_clicks": 1.0,
+  "wait_between_loops": 2.0,
+  "coordinates": [
+    {
+      "monitor": 0,
+      "x": 100,
+      "y": 200
+    },
+    {
+      "monitor": 1,
+      "x": 300,
+      "y": 400
+    }
+  ]
+}
+
