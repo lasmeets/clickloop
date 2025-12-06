@@ -10,8 +10,13 @@ import json
 import time
 import ctypes
 import argparse
+import logging
 from ctypes import Structure, POINTER, c_uint, c_long, windll, WINFUNCTYPE
 from ctypes.wintypes import BOOL, DWORD, HMONITOR, HDC, RECT, LPARAM
+
+from clickloop.logging_config import setup_logging
+
+logger = logging.getLogger("clickloop")
 
 
 # Windows API structures and constants
@@ -142,10 +147,7 @@ def get_monitors():
         if not user32.GetMonitorInfoW(hmonitor, ctypes.byref(info)):
             error_code = ctypes.get_last_error()
             if error_code != 0:
-                print(
-                    f"Warning: GetMonitorInfoW failed with error {error_code}",
-                    file=sys.stderr
-                )
+                logger.warning("GetMonitorInfoW failed with error %s", error_code)
             return True
 
         is_primary = bool(info.dwFlags & MONITORINFOF_PRIMARY)
@@ -515,11 +517,10 @@ def run_click_loop(config, monitors):
     wait_between_loops = config["wait_between_loops"]
     coordinates = config["coordinates"]
 
-    print(f"Starting click loop: {loops} iterations")
-    print(f"Coordinates to click: {len(coordinates)}")
-    print(f"Wait between clicks: {wait_between_clicks}s")
-    print(f"Wait between loops: {wait_between_loops}s")
-    print()
+    logger.info("Starting click loop: %s iterations", loops)
+    logger.info("Coordinates to click: %s", len(coordinates))
+    logger.info("Wait between clicks: %ss", wait_between_clicks)
+    logger.info("Wait between loops: %ss", wait_between_loops)
 
     # Convert all coordinates to virtual coordinates upfront
     virtual_coords = []
@@ -530,14 +531,13 @@ def run_click_loop(config, monitors):
         virtual_coords.append((virtual_x, virtual_y))
 
     for loop_num in range(1, loops + 1):
-        print(f"Loop {loop_num}/{loops}")
+        logger.info("Loop %s/%s", loop_num, loops)
 
         for coord_idx, (virtual_x, virtual_y) in enumerate(virtual_coords):
             coord = coordinates[coord_idx]
-            print(
-                f"  Clicking monitor {coord['monitor']} "
-                f"at ({coord['x']}, {coord['y']}) "
-                f"[virtual: ({virtual_x}, {virtual_y})]"
+            logger.debug(
+                "Clicking monitor %s at (%s, %s) [virtual: (%s, %s)]",
+                coord["monitor"], coord["x"], coord["y"], virtual_x, virtual_y
             )
 
             click_at(virtual_x, virtual_y)
@@ -546,27 +546,28 @@ def run_click_loop(config, monitors):
                 time.sleep(wait_between_clicks)
 
         if loop_num < loops:
-            print(f"Waiting {wait_between_loops}s before next loop...")
+            logger.debug("Waiting %ss before next loop...", wait_between_loops)
             time.sleep(wait_between_loops)
-            print()
 
-    print("Click loop completed!")
+    logger.info("Click loop completed!")
 
 
 def print_monitor_info(monitors):
     """Print information about detected monitors."""
-    print("Detected monitors:")
+    logger.info("Detected monitors:")
     for idx, monitor in enumerate(monitors):
         primary_str = " (PRIMARY)" if monitor.is_primary else ""
-        print(
-            f"  Monitor {idx}: {monitor.width}x{monitor.height} "
-            f"at ({monitor.left}, {monitor.top}){primary_str}"
+        logger.info(
+            "  Monitor %s: %sx%s at (%s, %s)%s",
+            idx, monitor.width, monitor.height, monitor.left, monitor.top, primary_str
         )
-    print()
 
 
 def main():
     """Main entry point."""
+    # Initialize logging
+    setup_logging()
+
     parser = argparse.ArgumentParser(
         description="Automated mouse clicking script with multi-monitor support"
     )
@@ -598,7 +599,7 @@ def main():
     try:
         config = load_config(args.config)
     except FileNotFoundError:
-        print(f"Warning: Configuration file '{args.config}' not found. Using defaults.")
+        logger.warning("Configuration file '%s' not found. Using defaults.", args.config)
         config = {
             "loops": 10,
             "wait_between_clicks": 1.0,
@@ -620,25 +621,25 @@ def main():
     try:
         validate_config(config)
     except ValueError as e:
-        print(f"Error: Invalid configuration: {e}", file=sys.stderr)
+        logger.error("Invalid configuration: %s", e)
         sys.exit(1)
 
     # Detect monitors
     try:
         monitors = get_monitors()
     except RuntimeError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(str(e))
         sys.exit(1)
 
     if len(monitors) == 0:
-        print("Error: No monitors detected", file=sys.stderr)
+        logger.error("No monitors detected")
         sys.exit(1)
 
     print_monitor_info(monitors)
 
     # Validate coordinates against monitors
     if len(config["coordinates"]) == 0:
-        print("Error: No coordinates specified in configuration", file=sys.stderr)
+        logger.error("No coordinates specified in configuration")
         sys.exit(1)
 
     try:
@@ -647,14 +648,14 @@ def main():
                 coord["monitor"], coord["x"], coord["y"], monitors
             )
     except ValueError as e:
-        print(f"Error: Invalid coordinate: {e}", file=sys.stderr)
+        logger.error("Invalid coordinate: %s", e)
         sys.exit(1)
 
     # Run the click loop
     try:
         run_click_loop(config, monitors)
     except (ValueError, RuntimeError) as e:
-        print(f"Error during execution: {e}", file=sys.stderr)
+        logger.error("Error during execution: %s", e)
         sys.exit(1)
 
 

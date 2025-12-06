@@ -1,5 +1,6 @@
 # Custom Folders
 /.refs
+/data/logs/
 /data/config/*
 
 # Custom Extensions
