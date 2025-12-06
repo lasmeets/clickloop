@@ -78,5 +78,3 @@ class TestConvertToVirtualCoords:
         x, y = convert_to_virtual_coords(0, 500, 600, monitors)
         assert x == 500
         assert y == 600
-
-

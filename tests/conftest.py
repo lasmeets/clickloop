@@ -1,9 +1,9 @@
 """Pytest configuration and fixtures for ClickLoop tests."""
 
-import ctypes
-import pytest
 from unittest.mock import MagicMock
 from ctypes.wintypes import RECT
+
+import pytest
 
 from clickloop.__main__ import MonitorInfo
 
@@ -65,4 +65,3 @@ def sample_config_minimal():
             {"monitor": 0, "x": 50, "y": 50},
         ],
     }
-

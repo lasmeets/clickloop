@@ -2,8 +2,9 @@
 
 import json
 import tempfile
-import pytest
 from pathlib import Path
+
+import pytest
 
 from clickloop.__main__ import load_config, validate_config
 
@@ -215,5 +216,3 @@ class TestValidateConfig:
         }
         with pytest.raises(ValueError, match="y must be a non-negative number"):
             validate_config(config)
-
-

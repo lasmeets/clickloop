@@ -460,7 +460,7 @@ def validate_config(config):
             )
 
     if "coordinates" not in config:
-        return
+        raise ValueError("coordinates must be a list")
 
     if not isinstance(config["coordinates"], list):
         raise ValueError("coordinates must be a list")
@@ -542,7 +542,7 @@ def run_click_loop(config, monitors):
 
             click_at(virtual_x, virtual_y)
 
-            if coord_idx < len(virtual_coords) - 1:
+            if coord_idx < len(virtual_coords) - 1 and wait_between_clicks > 0:
                 time.sleep(wait_between_clicks)
 
         if loop_num < loops:

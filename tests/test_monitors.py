@@ -1,9 +1,13 @@
 """Tests for monitor detection functions."""
 
 import ctypes
-import pytest
-from unittest.mock import MagicMock, patch, call
 from ctypes.wintypes import RECT, DWORD
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+# Save reference to real byref before it might get patched
+_real_byref = ctypes.byref
 
 from clickloop.__main__ import (
     get_monitors,
@@ -118,20 +122,41 @@ class TestGetMonitorsAlternative:
     """Tests for get_monitors_alternative function."""
 
     @patch("clickloop.__main__.user32")
-    def test_get_monitors_alternative_success(self, mock_user32):
+    @patch("clickloop.__main__.ctypes.byref")
+    def test_get_monitors_alternative_success(self, mock_byref, mock_user32):
         """Test successful alternative monitor detection."""
-        # Mock EnumDisplayDevicesW to return two monitors
+        # Track device structures created in the function
+        # We identify them by their attributes since the classes are defined inside the function
+        device_structures = []
+        devmode_structures = []
+
+        def byref_side_effect(obj):
+            # Store references to the actual structures so we can modify them
+            # Check for attributes to identify structure types
+            if hasattr(obj, 'StateFlags') and hasattr(obj, 'DeviceName'):
+                device_structures.append(obj)
+            elif hasattr(obj, 'dmPelsWidth') and hasattr(obj, 'dmPelsHeight'):
+                devmode_structures.append(obj)
+            # Use the real byref (not the mocked one) to avoid recursion
+            return _real_byref(obj)
+
+        mock_byref.side_effect = byref_side_effect
+
+        # Mock EnumDisplayDevicesW to return two monitors and modify structures
         device_calls = [0]
 
         def enum_display_devices_side_effect(device_name, device_index, device_ptr, flags):
             device_calls[0] += 1
             if device_calls[0] == 1:
-                device_ptr.contents.StateFlags = 0x00000001  # DISPLAY_DEVICE_ACTIVE
-                device_ptr.contents.DeviceName = "DISPLAY1"
+                # Modify the actual structure that was passed
+                if device_structures:
+                    device_structures[0].StateFlags = 0x00000001  # DISPLAY_DEVICE_ACTIVE
+                    device_structures[0].DeviceName = "DISPLAY1"
                 return True
             elif device_calls[0] == 2:
-                device_ptr.contents.StateFlags = 0x00000001  # DISPLAY_DEVICE_ACTIVE
-                device_ptr.contents.DeviceName = "DISPLAY2"
+                if len(device_structures) > 1:
+                    device_structures[1].StateFlags = 0x00000001  # DISPLAY_DEVICE_ACTIVE
+                    device_structures[1].DeviceName = "DISPLAY2"
                 return True
             return False
 
@@ -142,12 +167,12 @@ class TestGetMonitorsAlternative:
 
         def enum_display_settings_side_effect(device_name, mode_num, devmode_ptr):
             settings_calls[0] += 1
-            if settings_calls[0] == 1:
-                devmode_ptr.contents.dmPelsWidth = 1920
-                devmode_ptr.contents.dmPelsHeight = 1080
-            elif settings_calls[0] == 2:
-                devmode_ptr.contents.dmPelsWidth = 1920
-                devmode_ptr.contents.dmPelsHeight = 1080
+            if settings_calls[0] == 1 and devmode_structures:
+                devmode_structures[0].dmPelsWidth = 1920
+                devmode_structures[0].dmPelsHeight = 1080
+            elif settings_calls[0] == 2 and len(devmode_structures) > 1:
+                devmode_structures[1].dmPelsWidth = 1920
+                devmode_structures[1].dmPelsHeight = 1080
             return True
 
         mock_user32.EnumDisplaySettingsW.side_effect = enum_display_settings_side_effect
@@ -177,5 +202,3 @@ class TestGetMonitorsAlternative:
 
         with pytest.raises(RuntimeError, match="No monitors detected using alternative method"):
             get_monitors_alternative()
-
-

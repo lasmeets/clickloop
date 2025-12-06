@@ -1,7 +1,8 @@
 """Tests for clicking functions."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch, call
 
 from clickloop.__main__ import click_at, run_click_loop
 
@@ -153,5 +154,3 @@ class TestRunClickLoop:
 
         with pytest.raises(RuntimeError, match="Click failed"):
             run_click_loop(config, sample_monitors)
-
-
