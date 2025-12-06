@@ -14,7 +14,7 @@ import logging
 from ctypes import Structure, POINTER, c_uint, c_long, windll, WINFUNCTYPE
 from ctypes.wintypes import BOOL, DWORD, HMONITOR, HDC, RECT, LPARAM
 
-from clickloop.logging_config import setup_logging
+from clickloop.utils.logging import setup_logging
 
 logger = logging.getLogger("clickloop")
 
