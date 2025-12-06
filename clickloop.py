@@ -5,17 +5,18 @@ ClickLoop - Automated mouse clicking script for Windows with multi-monitor suppo
 Uses only Python standard library (ctypes for Windows API).
 """
 
-import argparse
-import ctypes
-import json
 import sys
+import json
 import time
+import ctypes
+import argparse
 from ctypes import Structure, POINTER, c_uint, c_long, windll, WINFUNCTYPE
 from ctypes.wintypes import BOOL, DWORD, HMONITOR, HDC, RECT, LPARAM
 
 
 # Windows API structures and constants
 class MONITORINFO(Structure):
+    """Information about a display monitor."""
     _fields_ = [
         ("cbSize", DWORD),
         ("rcMonitor", RECT),
@@ -37,10 +38,12 @@ MOUSEEVENTF_ABSOLUTE = 0x8000
 
 
 class POINT(Structure):
+    """A point on a screen."""
     _fields_ = [("x", c_long), ("y", c_long)]
 
 
 class MOUSEINPUT(Structure):
+    """Mouse input information."""
     _fields_ = [
         ("dx", c_long),
         ("dy", c_long),
@@ -52,7 +55,9 @@ class MOUSEINPUT(Structure):
 
 
 class INPUT(Structure):
+    """Input information."""
     class _INPUT(Structure):
+        """Input information."""
         _fields_ = [("mi", MOUSEINPUT)]
 
     _anonymous_ = ("_input",)
@@ -64,8 +69,13 @@ class INPUT(Structure):
 
 # Windows API function prototypes
 user32 = windll.user32
+gdi32 = windll.gdi32
 
 MonitorEnumProc = WINFUNCTYPE(BOOL, HMONITOR, HDC, POINTER(RECT), LPARAM)
+
+# Set up GetMonitorInfoW function prototype
+user32.GetMonitorInfoW.argtypes = [HMONITOR, POINTER(MONITORINFO)]
+user32.GetMonitorInfoW.restype = BOOL
 
 
 class MonitorInfo:
@@ -78,26 +88,32 @@ class MonitorInfo:
 
     @property
     def left(self):
+        """Get the left coordinate of the monitor."""
         return self.bounds.left
 
     @property
     def top(self):
+        """Get the top coordinate of the monitor."""
         return self.bounds.top
 
     @property
     def right(self):
+        """Get the right coordinate of the monitor."""
         return self.bounds.right
 
     @property
     def bottom(self):
+        """Get the bottom coordinate of the monitor."""
         return self.bounds.bottom
 
     @property
     def width(self):
+        """Get the width of the monitor."""
         return self.bounds.right - self.bounds.left
 
     @property
     def height(self):
+        """Get the height of the monitor."""
         return self.bounds.bottom - self.bounds.top
 
     def __repr__(self):
@@ -121,9 +137,15 @@ def get_monitors():
     monitors = []
 
     def enum_proc(hmonitor, _hdc, _lprect, _lparam):
-        info = MONITORINFO()  # pylint: disable=attribute-defined-outside-init
+        info = MONITORINFO()
         info.cbSize = DWORD(ctypes.sizeof(MONITORINFO))  # pylint: disable=attribute-defined-outside-init
-        if not user32.GetMonitorInfoW(hmonitor, info):
+        if not user32.GetMonitorInfoW(hmonitor, ctypes.byref(info)):
+            error_code = ctypes.get_last_error()
+            if error_code != 0:
+                print(
+                    f"Warning: GetMonitorInfoW failed with error {error_code}",
+                    file=sys.stderr
+                )
             return True
 
         is_primary = bool(info.dwFlags & MONITORINFOF_PRIMARY)
@@ -134,6 +156,145 @@ def get_monitors():
     callback = MonitorEnumProc(enum_proc)
     if not user32.EnumDisplayMonitors(None, None, callback, 0):
         raise RuntimeError("Failed to enumerate display monitors")
+
+    # Validate that we got valid monitor data
+    if len(monitors) == 0:
+        raise RuntimeError("No monitors detected")
+
+    # Check if any monitors have invalid dimensions (fallback to alternative method)
+    invalid_monitors = [
+        m for m in monitors if m.width == 0 or m.height == 0
+    ]
+    if invalid_monitors:
+        return get_monitors_alternative()
+
+    return monitors
+
+
+def get_monitors_alternative():
+    """
+    Alternative monitor detection using EnumDisplayDevices and EnumDisplaySettings.
+
+    This is a fallback method when GetMonitorInfoW doesn't work correctly.
+
+    Returns:
+        list[MonitorInfo]: List of monitor information objects.
+
+    Raises:
+        RuntimeError: If monitor enumeration fails.
+    """
+    # Define structures needed for EnumDisplayDevices
+    class DISPLAY_DEVICE(Structure):  # pylint: disable=invalid-name
+        """Display device information."""
+        _fields_ = [
+            ("cb", DWORD),
+            ("DeviceName", ctypes.c_wchar * 32),
+            ("DeviceString", ctypes.c_wchar * 128),
+            ("StateFlags", DWORD),
+            ("DeviceID", ctypes.c_wchar * 128),
+            ("DeviceKey", ctypes.c_wchar * 128),
+        ]
+
+    class DEVMODE(Structure):  # pylint: disable=invalid-name
+        """Device mode information."""
+        _fields_ = [
+            ("dmDeviceName", ctypes.c_wchar * 32),
+            ("dmSpecVersion", ctypes.c_ushort),
+            ("dmDriverVersion", ctypes.c_ushort),
+            ("dmSize", ctypes.c_ushort),
+            ("dmDriverExtra", ctypes.c_ushort),
+            ("dmFields", DWORD),
+            ("dmOrientation", ctypes.c_short),
+            ("dmPaperSize", ctypes.c_short),
+            ("dmPaperLength", ctypes.c_short),
+            ("dmPaperWidth", ctypes.c_short),
+            ("dmScale", ctypes.c_short),
+            ("dmCopies", ctypes.c_short),
+            ("dmDefaultSource", ctypes.c_short),
+            ("dmPrintQuality", ctypes.c_short),
+            ("dmColor", ctypes.c_short),
+            ("dmDuplex", ctypes.c_short),
+            ("dmYResolution", ctypes.c_short),
+            ("dmTTOption", ctypes.c_short),
+            ("dmCollate", ctypes.c_short),
+            ("dmFormName", ctypes.c_wchar * 32),
+            ("dmLogPixels", ctypes.c_ushort),
+            ("dmBitsPerPel", DWORD),
+            ("dmPelsWidth", DWORD),
+            ("dmPelsHeight", DWORD),
+            ("dmDisplayFlags", DWORD),
+            ("dmDisplayFrequency", DWORD),
+        ]
+
+    ENUM_CURRENT_SETTINGS = -1
+
+    # Set up function prototypes
+    user32.EnumDisplayDevicesW.argtypes = [
+        ctypes.c_wchar_p, DWORD, POINTER(DISPLAY_DEVICE), DWORD
+    ]
+    user32.EnumDisplayDevicesW.restype = BOOL
+
+    user32.EnumDisplaySettingsW.argtypes = [
+        ctypes.c_wchar_p, DWORD, POINTER(DEVMODE)
+    ]
+    user32.EnumDisplaySettingsW.restype = BOOL
+
+    monitors = []
+    device_index = 0
+    primary_found = False
+
+    while True:
+        device = DISPLAY_DEVICE()  # pylint: disable=attribute-defined-outside-init
+        device.cb = ctypes.sizeof(DISPLAY_DEVICE)  # pylint: disable=attribute-defined-outside-init
+
+        if not user32.EnumDisplayDevicesW(None, device_index, ctypes.byref(device), 0):
+            break
+
+        # Only process active display devices
+        if device.StateFlags & 0x00000001:  # DISPLAY_DEVICE_ACTIVE
+            devmode = DEVMODE()  # pylint: disable=attribute-defined-outside-init
+            devmode.dmSize = ctypes.sizeof(DEVMODE)  # pylint: disable=attribute-defined-outside-init
+
+            if user32.EnumDisplaySettingsW(
+                device.DeviceName, ENUM_CURRENT_SETTINGS, ctypes.byref(devmode)
+            ):
+                # Create a RECT structure for this monitor
+                # Note: This method doesn't give us exact positions, so we estimate
+                # based on virtual screen metrics
+                width = devmode.dmPelsWidth
+                height = devmode.dmPelsHeight
+
+                # Get virtual screen position
+                virtual_left = user32.GetSystemMetrics(76)  # SM_XVIRTUALSCREEN
+                virtual_top = user32.GetSystemMetrics(77)  # SM_YVIRTUALSCREEN
+
+                # Estimate position (this is approximate)
+                # Primary monitor is typically at (0, 0)
+                is_primary = not primary_found
+                if is_primary:
+                    left = 0
+                    top = 0
+                    primary_found = True
+                else:
+                    # For secondary monitors, estimate position
+                    # This is a simplified approach
+                    left = virtual_left + (len(monitors) * width)
+                    top = virtual_top
+
+                # Create a RECT structure
+                bounds = RECT()  # pylint: disable=attribute-defined-outside-init
+                bounds.left = left  # pylint: disable=attribute-defined-outside-init
+                bounds.top = top  # pylint: disable=attribute-defined-outside-init
+                bounds.right = left + width  # pylint: disable=attribute-defined-outside-init
+                bounds.bottom = top + height  # pylint: disable=attribute-defined-outside-init
+
+                monitor = MonitorInfo(None, bounds, is_primary)
+                monitors.append(monitor)
+
+        device_index += 1
+
+    if len(monitors) == 0:
+        raise RuntimeError("No monitors detected using alternative method")
 
     return monitors
 
