@@ -573,8 +573,8 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        default="config.json",
-        help="Path to configuration file (default: config.json)",
+        default="data/config/coordinates.json",
+        help="Path to configuration file (default: data/config/coordinates.json)",
     )
     parser.add_argument(
         "--loops",
