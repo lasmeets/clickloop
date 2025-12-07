@@ -67,7 +67,7 @@ class TestRunClickLoop:
     """Tests for run_click_loop function."""
 
     @patch("clickloop.commands.run.time.sleep")
-    @patch("clickloop.core.clicking.click_at")
+    @patch("clickloop.commands.run.click_at")
     def test_run_click_loop_single_coordinate(
         self, mock_click_at, mock_sleep, sample_config_minimal, sample_monitors
     ):
@@ -85,7 +85,7 @@ class TestRunClickLoop:
         assert mock_sleep.call_count == 1
 
     @patch("clickloop.commands.run.time.sleep")
-    @patch("clickloop.core.clicking.click_at")
+    @patch("clickloop.commands.run.click_at")
     def test_run_click_loop_multiple_coordinates(
         self, mock_click_at, mock_sleep, sample_config, sample_monitors
     ):
@@ -101,7 +101,7 @@ class TestRunClickLoop:
         assert mock_sleep.call_count == 3
 
     @patch("clickloop.commands.run.time.sleep")
-    @patch("clickloop.core.clicking.click_at")
+    @patch("clickloop.commands.run.click_at")
     def test_run_click_loop_no_wait_between_clicks(
         self, mock_click_at, mock_sleep, sample_config, sample_monitors
     ):
@@ -118,7 +118,7 @@ class TestRunClickLoop:
         assert mock_sleep.call_count == 0
 
     @patch("clickloop.commands.run.time.sleep")
-    @patch("clickloop.core.clicking.click_at")
+    @patch("clickloop.commands.run.click_at")
     def test_run_click_loop_single_loop(
         self, mock_click_at, mock_sleep, sample_config, sample_monitors
     ):
@@ -133,8 +133,8 @@ class TestRunClickLoop:
         # Should sleep between clicks once (2 coordinates - 1)
         assert mock_sleep.call_count == 1
 
-    @patch("clickloop.core.clicking.click_at")
-    @patch("clickloop.core.clicking.convert_to_virtual_coords")
+    @patch("clickloop.commands.run.click_at")
+    @patch("clickloop.commands.run.convert_to_virtual_coords")
     def test_run_click_loop_coordinate_conversion(
         self, mock_convert, mock_click_at, sample_config, sample_monitors
     ):
@@ -153,7 +153,7 @@ class TestRunClickLoop:
         mock_click_at.assert_any_call(100, 200)
         mock_click_at.assert_any_call(2220, 400)
 
-    @patch("clickloop.__main__.click_at")
+    @patch("clickloop.commands.run.click_at")
     def test_run_click_loop_handles_click_error(
         self, mock_click_at, sample_config, sample_monitors
     ):

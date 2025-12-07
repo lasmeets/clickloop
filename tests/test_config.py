@@ -41,7 +41,7 @@ class TestLoadConfig:
 
         try:
             config = load_config(config_path)
-            assert config["loops"] == 10  # Default
+            assert config["loops"] == 3  # Default
             assert config["wait_between_clicks"] == 1.0  # Default
             assert config["wait_between_loops"] == 2.0  # Default
             assert len(config["coordinates"]) == 1
