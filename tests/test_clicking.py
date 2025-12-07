@@ -67,7 +67,9 @@ class TestRunClickLoop:
 
     @patch("clickloop.__main__.time.sleep")
     @patch("clickloop.__main__.click_at")
-    def test_run_click_loop_single_coordinate(self, mock_click_at, mock_sleep, sample_config_minimal, sample_monitors):
+    def test_run_click_loop_single_coordinate(
+        self, mock_click_at, mock_sleep, sample_config_minimal, sample_monitors
+    ):
         """Test running click loop with single coordinate."""
         config = sample_config_minimal.copy()
         config["loops"] = 2
@@ -83,7 +85,9 @@ class TestRunClickLoop:
 
     @patch("clickloop.__main__.time.sleep")
     @patch("clickloop.__main__.click_at")
-    def test_run_click_loop_multiple_coordinates(self, mock_click_at, mock_sleep, sample_config, sample_monitors):
+    def test_run_click_loop_multiple_coordinates(
+        self, mock_click_at, mock_sleep, sample_config, sample_monitors
+    ):
         """Test running click loop with multiple coordinates."""
         config = sample_config.copy()
         config["loops"] = 2
@@ -97,7 +101,9 @@ class TestRunClickLoop:
 
     @patch("clickloop.__main__.time.sleep")
     @patch("clickloop.__main__.click_at")
-    def test_run_click_loop_no_wait_between_clicks(self, mock_click_at, mock_sleep, sample_config, sample_monitors):
+    def test_run_click_loop_no_wait_between_clicks(
+        self, mock_click_at, mock_sleep, sample_config, sample_monitors
+    ):
         """Test running click loop with zero wait between clicks."""
         config = sample_config.copy()
         config["wait_between_clicks"] = 0
@@ -112,7 +118,9 @@ class TestRunClickLoop:
 
     @patch("clickloop.__main__.time.sleep")
     @patch("clickloop.__main__.click_at")
-    def test_run_click_loop_single_loop(self, mock_click_at, mock_sleep, sample_config, sample_monitors):
+    def test_run_click_loop_single_loop(
+        self, mock_click_at, mock_sleep, sample_config, sample_monitors
+    ):
         """Test running click loop with single loop (no wait between loops)."""
         config = sample_config.copy()
         config["loops"] = 1
@@ -124,10 +132,11 @@ class TestRunClickLoop:
         # Should sleep between clicks once (2 coordinates - 1)
         assert mock_sleep.call_count == 1
 
-    @patch("clickloop.__main__.time.sleep")
     @patch("clickloop.__main__.click_at")
     @patch("clickloop.__main__.convert_to_virtual_coords")
-    def test_run_click_loop_coordinate_conversion(self, mock_convert, mock_click_at, mock_sleep, sample_config, sample_monitors):
+    def test_run_click_loop_coordinate_conversion(
+        self, mock_convert, mock_click_at, sample_config, sample_monitors
+    ):
         """Test that coordinates are converted to virtual coordinates."""
         config = sample_config.copy()
         config["loops"] = 1
@@ -143,9 +152,10 @@ class TestRunClickLoop:
         mock_click_at.assert_any_call(100, 200)
         mock_click_at.assert_any_call(2220, 400)
 
-    @patch("clickloop.__main__.time.sleep")
     @patch("clickloop.__main__.click_at")
-    def test_run_click_loop_handles_click_error(self, mock_click_at, mock_sleep, sample_config, sample_monitors):
+    def test_run_click_loop_handles_click_error(
+        self, mock_click_at, sample_config, sample_monitors
+    ):
         """Test that RuntimeError from click_at is propagated."""
         config = sample_config.copy()
         config["loops"] = 1

@@ -1,21 +1,16 @@
 """Tests for monitor detection functions."""
 
 import ctypes
-from ctypes.wintypes import RECT, DWORD
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+
+from clickloop.__main__ import get_monitors
+from clickloop.__main__ import get_monitors_alternative
 
 # Save reference to real byref before it might get patched
 _real_byref = ctypes.byref
 
-from clickloop.__main__ import (
-    get_monitors,
-    get_monitors_alternative,
-    MonitorInfo,
-    MONITORINFO,
-    MONITORINFOF_PRIMARY,
-)
 
 
 class TestGetMonitors:
@@ -23,74 +18,9 @@ class TestGetMonitors:
 
     @patch("clickloop.__main__.user32")
     @patch("clickloop.__main__.MonitorEnumProc")
-    def test_get_monitors_success(self, mock_enum_proc_class, mock_user32, sample_monitors):
+    def test_get_monitors_success(self, mock_enum_proc_class, mock_user32):
         """Test successful monitor enumeration."""
         # Setup mock monitor info structures
-        def enum_proc_side_effect(hmonitor, _hdc, _lprect, _lparam):
-            monitors = []
-            info1 = MONITORINFO()
-            info1.cbSize = DWORD(ctypes.sizeof(MONITORINFO))
-            info1.rcMonitor = RECT()
-            info1.rcMonitor.left = 0
-            info1.rcMonitor.top = 0
-            info1.rcMonitor.right = 1920
-            info1.rcMonitor.bottom = 1080
-            info1.dwFlags = MONITORINFOF_PRIMARY
-
-            info2 = MONITORINFO()
-            info2.cbSize = DWORD(ctypes.sizeof(MONITORINFO))
-            info2.rcMonitor = RECT()
-            info2.rcMonitor.left = 1920
-            info2.rcMonitor.top = 0
-            info2.rcMonitor.right = 3840
-            info2.rcMonitor.bottom = 1080
-            info2.dwFlags = 0
-
-            # Mock GetMonitorInfoW to return True and populate info
-            call_count = [0]
-
-            def get_monitor_info_side_effect(hmon, info_ptr):
-                call_count[0] += 1
-                if call_count[0] == 1:
-                    info_ptr.contents.rcMonitor.left = 0
-                    info_ptr.contents.rcMonitor.top = 0
-                    info_ptr.contents.rcMonitor.right = 1920
-                    info_ptr.contents.rcMonitor.bottom = 1080
-                    info_ptr.contents.dwFlags = MONITORINFOF_PRIMARY
-                elif call_count[0] == 2:
-                    info_ptr.contents.rcMonitor.left = 1920
-                    info_ptr.contents.rcMonitor.top = 0
-                    info_ptr.contents.rcMonitor.right = 3840
-                    info_ptr.contents.rcMonitor.bottom = 1080
-                    info_ptr.contents.dwFlags = 0
-                return True
-
-            mock_user32.GetMonitorInfoW.side_effect = get_monitor_info_side_effect
-
-            # Mock callback to collect monitors
-            collected_monitors = []
-
-            def mock_callback(hmonitor, hdc, lprect, lparam):
-                info = MONITORINFO()
-                info.cbSize = DWORD(ctypes.sizeof(MONITORINFO))
-                mock_user32.GetMonitorInfoW(hmonitor, ctypes.byref(info))
-                is_primary = bool(info.dwFlags & MONITORINFOF_PRIMARY)
-                monitor = MonitorInfo(hmonitor, info.rcMonitor, is_primary)
-                collected_monitors.append(monitor)
-                return True
-
-            mock_callback_obj = MagicMock()
-            mock_callback_obj.side_effect = mock_callback
-            mock_enum_proc_class.return_value = mock_callback_obj
-
-            # Mock EnumDisplayMonitors to return True
-            mock_user32.EnumDisplayMonitors.return_value = True
-
-            # Call get_monitors
-            with patch("clickloop.__main__.get_monitors") as mock_get_monitors:
-                # We need to actually call the real function but with mocked Windows APIs
-                # This is complex, so we'll test the alternative method instead
-                pass
 
     @patch("clickloop.__main__.user32")
     def test_get_monitors_enumeration_fails(self, mock_user32):
@@ -106,16 +36,7 @@ class TestGetMonitors:
         # Mock EnumDisplayMonitors to return True but callback never called
         mock_user32.EnumDisplayMonitors.return_value = True
 
-        # We need to mock the callback to not add any monitors
-        # This is tricky with the actual implementation, so we test the error path
-        with patch("clickloop.__main__.MonitorEnumProc") as mock_proc:
-            mock_callback = MagicMock(return_value=True)
-            mock_proc.return_value = mock_callback
 
-            # The callback needs to be called but not add monitors
-            # Since the actual implementation uses a closure, we need to test differently
-            # For now, we'll test that the function handles empty monitor list
-            pass
 
 
 class TestGetMonitorsAlternative:
@@ -145,7 +66,7 @@ class TestGetMonitorsAlternative:
         # Mock EnumDisplayDevicesW to return two monitors and modify structures
         device_calls = [0]
 
-        def enum_display_devices_side_effect(device_name, device_index, device_ptr, flags):
+        def enum_display_devices_side_effect(_device_name, _device_index, _device_ptr, _flags):
             device_calls[0] += 1
             if device_calls[0] == 1:
                 # Modify the actual structure that was passed
@@ -153,7 +74,7 @@ class TestGetMonitorsAlternative:
                     device_structures[0].StateFlags = 0x00000001  # DISPLAY_DEVICE_ACTIVE
                     device_structures[0].DeviceName = "DISPLAY1"
                 return True
-            elif device_calls[0] == 2:
+            if device_calls[0] == 2:
                 if len(device_structures) > 1:
                     device_structures[1].StateFlags = 0x00000001  # DISPLAY_DEVICE_ACTIVE
                     device_structures[1].DeviceName = "DISPLAY2"
@@ -165,12 +86,12 @@ class TestGetMonitorsAlternative:
         # Mock EnumDisplaySettingsW
         settings_calls = [0]
 
-        def enum_display_settings_side_effect(device_name, mode_num, devmode_ptr):
+        def enum_display_settings_side_effect(_device_name, _mode_num, _devmode_ptr):
             settings_calls[0] += 1
             if settings_calls[0] == 1 and devmode_structures:
                 devmode_structures[0].dmPelsWidth = 1920
                 devmode_structures[0].dmPelsHeight = 1080
-            elif settings_calls[0] == 2 and len(devmode_structures) > 1:
+            if settings_calls[0] == 2 and len(devmode_structures) > 1:
                 devmode_structures[1].dmPelsWidth = 1920
                 devmode_structures[1].dmPelsHeight = 1080
             return True

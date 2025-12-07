@@ -47,4 +47,3 @@ def setup_logging(log_level=logging.INFO):
     logger.addHandler(file_handler)
 
     return logger
-

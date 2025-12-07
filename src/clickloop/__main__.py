@@ -20,7 +20,7 @@ logger = logging.getLogger("clickloop")
 
 
 # Windows API structures and constants
-class MONITORINFO(Structure):
+class MONITORINFO(Structure):  # pylint: disable=too-few-public-methods
     """Information about a display monitor."""
     _fields_ = [
         ("cbSize", DWORD),
@@ -42,12 +42,12 @@ MOUSEEVENTF_LEFTUP = 0x0004
 MOUSEEVENTF_ABSOLUTE = 0x8000
 
 
-class POINT(Structure):
+class POINT(Structure):  # pylint: disable=too-few-public-methods
     """A point on a screen."""
     _fields_ = [("x", c_long), ("y", c_long)]
 
 
-class MOUSEINPUT(Structure):
+class MOUSEINPUT(Structure):  # pylint: disable=too-few-public-methods
     """Mouse input information."""
     _fields_ = [
         ("dx", c_long),
@@ -70,6 +70,52 @@ class INPUT(Structure):
         ("type", DWORD),
         ("_input", _INPUT),
     ]
+
+
+class DisplayDevice(Structure):  # pylint: disable=invalid-name,too-few-public-methods
+    """Display device information."""
+    _fields_ = [
+        ("cb", DWORD),
+        ("DeviceName", ctypes.c_wchar * 32),
+        ("DeviceString", ctypes.c_wchar * 128),
+        ("StateFlags", DWORD),
+        ("DeviceID", ctypes.c_wchar * 128),
+        ("DeviceKey", ctypes.c_wchar * 128),
+    ]
+
+class DevMode(Structure):  # pylint: disable=invalid-name,too-few-public-methods
+    """Device mode information."""
+    _fields_ = [
+        ("dmDeviceName", ctypes.c_wchar * 32),
+        ("dmSpecVersion", ctypes.c_ushort),
+        ("dmDriverVersion", ctypes.c_ushort),
+        ("dmSize", ctypes.c_ushort),
+        ("dmDriverExtra", ctypes.c_ushort),
+        ("dmFields", DWORD),
+        ("dmOrientation", ctypes.c_short),
+        ("dmPaperSize", ctypes.c_short),
+        ("dmPaperLength", ctypes.c_short),
+        ("dmPaperWidth", ctypes.c_short),
+        ("dmScale", ctypes.c_short),
+        ("dmCopies", ctypes.c_short),
+        ("dmDefaultSource", ctypes.c_short),
+        ("dmPrintQuality", ctypes.c_short),
+        ("dmColor", ctypes.c_short),
+        ("dmDuplex", ctypes.c_short),
+        ("dmYResolution", ctypes.c_short),
+        ("dmTTOption", ctypes.c_short),
+        ("dmCollate", ctypes.c_short),
+        ("dmFormName", ctypes.c_wchar * 32),
+        ("dmLogPixels", ctypes.c_ushort),
+        ("dmBitsPerPel", DWORD),
+        ("dmPelsWidth", DWORD),
+        ("dmPelsHeight", DWORD),
+        ("dmDisplayFlags", DWORD),
+        ("dmDisplayFrequency", DWORD),
+    ]
+
+ENUM_CURRENT_SETTINGS = -1  # pylint: disable=invalid-name
+
 
 
 # Windows API function prototypes
@@ -143,7 +189,7 @@ def get_monitors():
 
     def enum_proc(hmonitor, _hdc, _lprect, _lparam):
         info = MONITORINFO()
-        info.cbSize = DWORD(ctypes.sizeof(MONITORINFO))  # pylint: disable=attribute-defined-outside-init
+        info.cbSize = DWORD(ctypes.sizeof(MONITORINFO))  # pylint: disable=attribute-defined-outside-init,invalid-name
         if not user32.GetMonitorInfoW(hmonitor, ctypes.byref(info)):
             error_code = ctypes.get_last_error()
             if error_code != 0:
@@ -185,59 +231,14 @@ def get_monitors_alternative():
     Raises:
         RuntimeError: If monitor enumeration fails.
     """
-    # Define structures needed for EnumDisplayDevices
-    class DISPLAY_DEVICE(Structure):  # pylint: disable=invalid-name
-        """Display device information."""
-        _fields_ = [
-            ("cb", DWORD),
-            ("DeviceName", ctypes.c_wchar * 32),
-            ("DeviceString", ctypes.c_wchar * 128),
-            ("StateFlags", DWORD),
-            ("DeviceID", ctypes.c_wchar * 128),
-            ("DeviceKey", ctypes.c_wchar * 128),
-        ]
-
-    class DEVMODE(Structure):  # pylint: disable=invalid-name
-        """Device mode information."""
-        _fields_ = [
-            ("dmDeviceName", ctypes.c_wchar * 32),
-            ("dmSpecVersion", ctypes.c_ushort),
-            ("dmDriverVersion", ctypes.c_ushort),
-            ("dmSize", ctypes.c_ushort),
-            ("dmDriverExtra", ctypes.c_ushort),
-            ("dmFields", DWORD),
-            ("dmOrientation", ctypes.c_short),
-            ("dmPaperSize", ctypes.c_short),
-            ("dmPaperLength", ctypes.c_short),
-            ("dmPaperWidth", ctypes.c_short),
-            ("dmScale", ctypes.c_short),
-            ("dmCopies", ctypes.c_short),
-            ("dmDefaultSource", ctypes.c_short),
-            ("dmPrintQuality", ctypes.c_short),
-            ("dmColor", ctypes.c_short),
-            ("dmDuplex", ctypes.c_short),
-            ("dmYResolution", ctypes.c_short),
-            ("dmTTOption", ctypes.c_short),
-            ("dmCollate", ctypes.c_short),
-            ("dmFormName", ctypes.c_wchar * 32),
-            ("dmLogPixels", ctypes.c_ushort),
-            ("dmBitsPerPel", DWORD),
-            ("dmPelsWidth", DWORD),
-            ("dmPelsHeight", DWORD),
-            ("dmDisplayFlags", DWORD),
-            ("dmDisplayFrequency", DWORD),
-        ]
-
-    ENUM_CURRENT_SETTINGS = -1
-
     # Set up function prototypes
     user32.EnumDisplayDevicesW.argtypes = [
-        ctypes.c_wchar_p, DWORD, POINTER(DISPLAY_DEVICE), DWORD
+        ctypes.c_wchar_p, DWORD, POINTER(DisplayDevice), DWORD
     ]
     user32.EnumDisplayDevicesW.restype = BOOL
 
     user32.EnumDisplaySettingsW.argtypes = [
-        ctypes.c_wchar_p, DWORD, POINTER(DEVMODE)
+        ctypes.c_wchar_p, DWORD, POINTER(DevMode)
     ]
     user32.EnumDisplaySettingsW.restype = BOOL
 
@@ -246,16 +247,16 @@ def get_monitors_alternative():
     primary_found = False
 
     while True:
-        device = DISPLAY_DEVICE()  # pylint: disable=attribute-defined-outside-init
-        device.cb = ctypes.sizeof(DISPLAY_DEVICE)  # pylint: disable=attribute-defined-outside-init
+        device = DisplayDevice()  # pylint: disable=attribute-defined-outside-init
+        device.cb = ctypes.sizeof(DisplayDevice)  # pylint: disable=attribute-defined-outside-init,invalid-name
 
         if not user32.EnumDisplayDevicesW(None, device_index, ctypes.byref(device), 0):
             break
 
         # Only process active display devices
         if device.StateFlags & 0x00000001:  # DISPLAY_DEVICE_ACTIVE
-            devmode = DEVMODE()  # pylint: disable=attribute-defined-outside-init
-            devmode.dmSize = ctypes.sizeof(DEVMODE)  # pylint: disable=attribute-defined-outside-init
+            devmode = DevMode()  # pylint: disable=attribute-defined-outside-init
+            devmode.dmSize = ctypes.sizeof(DevMode)  # pylint: disable=attribute-defined-outside-init,invalid-name
 
             if user32.EnumDisplaySettingsW(
                 device.DeviceName, ENUM_CURRENT_SETTINGS, ctypes.byref(devmode)
@@ -430,6 +431,38 @@ def load_config(config_path):
     return config
 
 
+def _validate_coordinate(i, coord):
+    if not isinstance(coord, dict):
+        raise ValueError(f"Coordinate {i} must be a dictionary")
+
+    if "monitor" not in coord:
+        raise ValueError(f"Coordinate {i} missing 'monitor' field")
+
+    if "x" not in coord:
+        raise ValueError(f"Coordinate {i} missing 'x' field")
+
+    if "y" not in coord:
+        raise ValueError(f"Coordinate {i} missing 'y' field")
+
+    monitor = coord["monitor"]
+    if not isinstance(monitor, int) or monitor < 0:
+        raise ValueError(
+            f"Coordinate {i}: monitor must be a non-negative integer, got {monitor}"
+        )
+
+    x = coord["x"]
+    if not isinstance(x, (int, float)) or x < 0:
+        raise ValueError(
+            f"Coordinate {i}: x must be a non-negative number, got {x}"
+        )
+
+    y = coord["y"]
+    if not isinstance(y, (int, float)) or y < 0:
+        raise ValueError(
+            f"Coordinate {i}: y must be a non-negative number, got {y}"
+        )
+
+
 def validate_config(config):
     """
     Validate configuration values.
@@ -469,35 +502,7 @@ def validate_config(config):
         raise ValueError("At least one coordinate must be specified")
 
     for i, coord in enumerate(config["coordinates"]):
-        if not isinstance(coord, dict):
-            raise ValueError(f"Coordinate {i} must be a dictionary")
-
-        if "monitor" not in coord:
-            raise ValueError(f"Coordinate {i} missing 'monitor' field")
-
-        if "x" not in coord:
-            raise ValueError(f"Coordinate {i} missing 'x' field")
-
-        if "y" not in coord:
-            raise ValueError(f"Coordinate {i} missing 'y' field")
-
-        monitor = coord["monitor"]
-        if not isinstance(monitor, int) or monitor < 0:
-            raise ValueError(
-                f"Coordinate {i}: monitor must be a non-negative integer, got {monitor}"
-            )
-
-        x = coord["x"]
-        if not isinstance(x, (int, float)) or x < 0:
-            raise ValueError(
-                f"Coordinate {i}: x must be a non-negative number, got {x}"
-            )
-
-        y = coord["y"]
-        if not isinstance(y, (int, float)) or y < 0:
-            raise ValueError(
-                f"Coordinate {i}: y must be a non-negative number, got {y}"
-            )
+        _validate_coordinate(i, coord)
 
 
 def run_click_loop(config, monitors):

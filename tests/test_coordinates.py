@@ -1,8 +1,10 @@
 """Tests for coordinate conversion functions."""
 
+from ctypes.wintypes import RECT
+
 import pytest
 
-from clickloop.__main__ import convert_to_virtual_coords
+from clickloop.__main__ import MonitorInfo, convert_to_virtual_coords
 
 
 class TestConvertToVirtualCoords:
@@ -65,9 +67,6 @@ class TestConvertToVirtualCoords:
 
     def test_convert_with_single_monitor(self):
         """Test conversion with single monitor setup."""
-        from ctypes.wintypes import RECT
-        from clickloop.__main__ import MonitorInfo
-
         monitor_bounds = RECT()
         monitor_bounds.left = 0
         monitor_bounds.top = 0
