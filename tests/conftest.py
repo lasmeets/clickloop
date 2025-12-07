@@ -5,7 +5,7 @@ from ctypes.wintypes import RECT
 
 import pytest
 
-from clickloop.__main__ import MonitorInfo
+from clickloop.core.monitors import MonitorInfo
 
 
 @pytest.fixture

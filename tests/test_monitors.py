@@ -5,8 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from clickloop.__main__ import get_monitors
-from clickloop.__main__ import get_monitors_alternative
+from clickloop.core.monitors import get_monitors, get_monitors_alternative
 
 # Save reference to real byref before it might get patched
 _real_byref = ctypes.byref
@@ -16,13 +15,13 @@ _real_byref = ctypes.byref
 class TestGetMonitors:
     """Tests for get_monitors function."""
 
-    @patch("clickloop.__main__.user32")
-    @patch("clickloop.__main__.MonitorEnumProc")
+    @patch("clickloop.core.monitors.user32")
+    @patch("clickloop.core.monitors.MonitorEnumProc")
     def test_get_monitors_success(self, mock_enum_proc_class, mock_user32):
         """Test successful monitor enumeration."""
         # Setup mock monitor info structures
 
-    @patch("clickloop.__main__.user32")
+    @patch("clickloop.core.monitors.user32")
     def test_get_monitors_enumeration_fails(self, mock_user32):
         """Test that RuntimeError is raised when enumeration fails."""
         mock_user32.EnumDisplayMonitors.return_value = False
@@ -30,7 +29,7 @@ class TestGetMonitors:
         with pytest.raises(RuntimeError, match="Failed to enumerate display monitors"):
             get_monitors()
 
-    @patch("clickloop.__main__.user32")
+    @patch("clickloop.core.monitors.user32")
     def test_get_monitors_no_monitors_detected(self, mock_user32):
         """Test that RuntimeError is raised when no monitors are detected."""
         # Mock EnumDisplayMonitors to return True but callback never called
@@ -42,8 +41,8 @@ class TestGetMonitors:
 class TestGetMonitorsAlternative:
     """Tests for get_monitors_alternative function."""
 
-    @patch("clickloop.__main__.user32")
-    @patch("clickloop.__main__.ctypes.byref")
+    @patch("clickloop.core.monitors.user32")
+    @patch("clickloop.core.monitors.ctypes.byref")
     def test_get_monitors_alternative_success(self, mock_byref, mock_user32):
         """Test successful alternative monitor detection."""
         # Track device structures created in the function
@@ -116,7 +115,7 @@ class TestGetMonitorsAlternative:
         assert monitors[0].height == 1080
         assert monitors[1].is_primary is False
 
-    @patch("clickloop.__main__.user32")
+    @patch("clickloop.core.monitors.user32")
     def test_get_monitors_alternative_no_monitors(self, mock_user32):
         """Test that RuntimeError is raised when no monitors detected."""
         mock_user32.EnumDisplayDevicesW.return_value = False

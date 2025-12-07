@@ -4,13 +4,14 @@ from unittest.mock import patch
 
 import pytest
 
-from clickloop.__main__ import click_at, run_click_loop
+from clickloop.commands.run import run_click_loop
+from clickloop.core.clicking import click_at
 
 
 class TestClickAt:
     """Tests for click_at function."""
 
-    @patch("clickloop.__main__.user32")
+    @patch("clickloop.core.clicking.user32")
     def test_click_at_success(self, mock_user32):
         """Test successful click at coordinates."""
         mock_user32.SetCursorPos.return_value = True
@@ -24,7 +25,7 @@ class TestClickAt:
         # Verify SendInput was called twice (mouse down and mouse up)
         assert mock_user32.SendInput.call_count == 2
 
-    @patch("clickloop.__main__.user32")
+    @patch("clickloop.core.clicking.user32")
     def test_click_at_set_cursor_fails(self, mock_user32):
         """Test that RuntimeError is raised when SetCursorPos fails."""
         mock_user32.SetCursorPos.return_value = False
@@ -32,7 +33,7 @@ class TestClickAt:
         with pytest.raises(RuntimeError, match="Failed to set cursor position"):
             click_at(100, 200)
 
-    @patch("clickloop.__main__.user32")
+    @patch("clickloop.core.clicking.user32")
     def test_click_at_send_input_down_fails(self, mock_user32):
         """Test that RuntimeError is raised when SendInput for mouse down fails."""
         mock_user32.SetCursorPos.return_value = True
@@ -41,7 +42,7 @@ class TestClickAt:
         with pytest.raises(RuntimeError, match="Failed to send mouse down event"):
             click_at(100, 200)
 
-    @patch("clickloop.__main__.user32")
+    @patch("clickloop.core.clicking.user32")
     def test_click_at_send_input_up_fails(self, mock_user32):
         """Test that RuntimeError is raised when SendInput for mouse up fails."""
         mock_user32.SetCursorPos.return_value = True
@@ -50,7 +51,7 @@ class TestClickAt:
         with pytest.raises(RuntimeError, match="Failed to send mouse up event"):
             click_at(100, 200)
 
-    @patch("clickloop.__main__.user32")
+    @patch("clickloop.core.clicking.user32")
     def test_click_at_with_float_coordinates(self, mock_user32):
         """Test click_at converts float coordinates to int."""
         mock_user32.SetCursorPos.return_value = True
@@ -65,8 +66,8 @@ class TestClickAt:
 class TestRunClickLoop:
     """Tests for run_click_loop function."""
 
-    @patch("clickloop.__main__.time.sleep")
-    @patch("clickloop.__main__.click_at")
+    @patch("clickloop.commands.run.time.sleep")
+    @patch("clickloop.core.clicking.click_at")
     def test_run_click_loop_single_coordinate(
         self, mock_click_at, mock_sleep, sample_config_minimal, sample_monitors
     ):
@@ -83,8 +84,8 @@ class TestRunClickLoop:
         # Should sleep between loops once
         assert mock_sleep.call_count == 1
 
-    @patch("clickloop.__main__.time.sleep")
-    @patch("clickloop.__main__.click_at")
+    @patch("clickloop.commands.run.time.sleep")
+    @patch("clickloop.core.clicking.click_at")
     def test_run_click_loop_multiple_coordinates(
         self, mock_click_at, mock_sleep, sample_config, sample_monitors
     ):
@@ -99,8 +100,8 @@ class TestRunClickLoop:
         # Should sleep: 1 between clicks per loop (2 loops * 1 sleep) + 1 between loops = 3
         assert mock_sleep.call_count == 3
 
-    @patch("clickloop.__main__.time.sleep")
-    @patch("clickloop.__main__.click_at")
+    @patch("clickloop.commands.run.time.sleep")
+    @patch("clickloop.core.clicking.click_at")
     def test_run_click_loop_no_wait_between_clicks(
         self, mock_click_at, mock_sleep, sample_config, sample_monitors
     ):
@@ -116,8 +117,8 @@ class TestRunClickLoop:
         # Should not sleep between clicks, only between loops (but only 1 loop, so 0 sleeps)
         assert mock_sleep.call_count == 0
 
-    @patch("clickloop.__main__.time.sleep")
-    @patch("clickloop.__main__.click_at")
+    @patch("clickloop.commands.run.time.sleep")
+    @patch("clickloop.core.clicking.click_at")
     def test_run_click_loop_single_loop(
         self, mock_click_at, mock_sleep, sample_config, sample_monitors
     ):
@@ -132,8 +133,8 @@ class TestRunClickLoop:
         # Should sleep between clicks once (2 coordinates - 1)
         assert mock_sleep.call_count == 1
 
-    @patch("clickloop.__main__.click_at")
-    @patch("clickloop.__main__.convert_to_virtual_coords")
+    @patch("clickloop.core.clicking.click_at")
+    @patch("clickloop.core.clicking.convert_to_virtual_coords")
     def test_run_click_loop_coordinate_conversion(
         self, mock_convert, mock_click_at, sample_config, sample_monitors
     ):

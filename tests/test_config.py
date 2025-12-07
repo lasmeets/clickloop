@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from clickloop.__main__ import load_config, validate_config
+from clickloop.core.config import load_config, validate_config
 
 
 class TestLoadConfig:

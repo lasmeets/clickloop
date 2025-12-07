@@ -4,7 +4,8 @@ from ctypes.wintypes import RECT
 
 import pytest
 
-from clickloop.__main__ import MonitorInfo, convert_to_virtual_coords
+from clickloop.core.clicking import convert_to_virtual_coords
+from clickloop.core.monitors import MonitorInfo
 
 
 class TestConvertToVirtualCoords:
