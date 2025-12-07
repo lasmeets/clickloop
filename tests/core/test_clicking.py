@@ -153,9 +153,10 @@ class TestRunClickLoop:
         mock_click_at.assert_any_call(100, 200)
         mock_click_at.assert_any_call(2220, 400)
 
+    @patch("clickloop.commands.run.time.sleep")
     @patch("clickloop.commands.run.click_at")
     def test_run_click_loop_handles_click_error(
-        self, mock_click_at, sample_config, sample_monitors
+        self, mock_click_at, _mock_sleep, sample_config, sample_monitors
     ):
         """Test that RuntimeError from click_at is propagated."""
         config = sample_config.copy()

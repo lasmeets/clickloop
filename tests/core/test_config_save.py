@@ -54,8 +54,8 @@ class TestSaveCoordinatesToConfig:
             assert "coordinates" in config
             assert len(config["coordinates"]) == 1
             assert config["coordinates"] == coordinates
-            # Should have defaults
-            assert config["loops"] == 10
+            # Should have defaults (save_coordinates_to_config uses loops=3, not 10)
+            assert config["loops"] == 3
             assert config["wait_between_clicks"] == 1.0
             assert config["wait_between_loops"] == 2.0
         finally:

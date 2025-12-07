@@ -148,7 +148,9 @@ def save_coordinates_to_config(coordinates, config_path, merge=True):
         except (ValueError, json.JSONDecodeError) as exc:
             # File exists but is empty or has invalid JSON - treat as new file
             # Check if it's just an empty file (JSONDecodeError) vs truly invalid JSON
-            if isinstance(exc, json.JSONDecodeError) and exc.msg == "Expecting value":
+            # load_config wraps JSONDecodeError in ValueError, so check the original exception
+            original_exc = exc.__cause__ if hasattr(exc, "__cause__") and exc.__cause__ else exc
+            if isinstance(original_exc, json.JSONDecodeError) and original_exc.msg == "Expecting value":
                 # Empty file - treat as new file
                 config = {
                     "loops": 3,
