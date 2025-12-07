@@ -37,7 +37,6 @@ class TestGetMonitors:
 
 
 
-
 class TestGetMonitorsAlternative:
     """Tests for get_monitors_alternative function."""
 
@@ -122,3 +121,4 @@ class TestGetMonitorsAlternative:
 
         with pytest.raises(RuntimeError, match="No monitors detected using alternative method"):
             get_monitors_alternative()
+

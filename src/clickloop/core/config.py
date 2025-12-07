@@ -140,13 +140,25 @@ def save_coordinates_to_config(coordinates, config_path, merge=True):
         except FileNotFoundError:
             # File doesn't exist, will create new one
             config = {
-                "loops": 10,
+                "loops": 3,
                 "wait_between_clicks": 1.0,
                 "wait_between_loops": 2.0,
                 "coordinates": [],
             }
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Invalid JSON in configuration file: {exc}") from exc
+        except (ValueError, json.JSONDecodeError) as exc:
+            # File exists but is empty or has invalid JSON - treat as new file
+            # Check if it's just an empty file (JSONDecodeError) vs truly invalid JSON
+            if isinstance(exc, json.JSONDecodeError) and exc.msg == "Expecting value":
+                # Empty file - treat as new file
+                config = {
+                    "loops": 3,
+                    "wait_between_clicks": 1.0,
+                    "wait_between_loops": 2.0,
+                    "coordinates": [],
+                }
+            else:
+                # Truly invalid JSON - re-raise
+                raise ValueError(f"Invalid JSON in configuration file: {exc}") from exc
 
     # Merge coordinates
     if "coordinates" not in config:
@@ -162,4 +174,3 @@ def save_coordinates_to_config(coordinates, config_path, merge=True):
         raise OSError(f"Failed to write configuration file: {exc}") from exc
 
     logger.info("Saved %s coordinate(s) to %s", len(coordinates), config_path)
-
