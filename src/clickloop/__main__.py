@@ -7,8 +7,9 @@ Uses only Python standard library (ctypes for Windows API).
 
 import argparse
 
-from clickloop.commands import pick_command, run_command
-from clickloop.utils.logging import setup_logging
+from .commands import pick_command, run_command
+from .utils.arger import ColourHelpFormatter
+from .utils.logging import setup_logging
 
 
 def main():
@@ -17,7 +18,8 @@ def main():
     setup_logging()
 
     parser = argparse.ArgumentParser(
-        description="Automated mouse clicking script with multi-monitor support"
+        description="Automated mouse clicking script with multi-monitor support",
+        formatter_class=ColourHelpFormatter,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -28,6 +30,7 @@ def main():
         "run",
         help="Run the click loop (default command)",
         description="Execute automated clicking based on configuration file",
+        formatter_class=ColourHelpFormatter,
     )
     run_parser.add_argument(
         "--config",
@@ -59,6 +62,7 @@ def main():
         "pick",
         help="Interactive coordinate picker",
         description="Interactive tool to find and capture XY coordinates",
+        formatter_class=ColourHelpFormatter,
     )
     pick_parser.add_argument(
         "--config",
