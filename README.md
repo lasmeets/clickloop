@@ -2,6 +2,17 @@
 
 Automated mouse clicking script for Windows with multi-monitor support. ClickLoop allows you to automate repetitive clicking tasks across multiple monitors using Python's standard library (no external dependencies required for basic functionality).
 
+## Project Description
+
+ClickLoop is a command-line tool designed to automate mouse clicking operations on Windows systems. It's particularly useful for:
+
+- Automating repetitive UI interactions
+- Testing applications that require mouse clicks
+- Performing routine tasks that involve clicking specific screen coordinates
+- Working with multi-monitor setups where coordinates need to be specified per monitor
+
+The tool uses only Python's standard library (specifically `ctypes` for Windows API calls), making it lightweight with no external dependencies beyond Python itself.
+
 ## Features
 
 - **Multi-monitor support**: Automatically detects and handles multiple displays
@@ -58,7 +69,15 @@ pip install -e .
 
 This installs the `click` command-line tool that you can use to run ClickLoop commands.
 
-### 5. Install Development Dependencies (Optional)
+### 5. Verify Installation
+
+Verify that ClickLoop is installed correctly:
+
+```bash
+click --help
+```
+
+### 6. Install Development Dependencies (Optional)
 
 If you want to run tests or linting:
 
@@ -105,13 +124,34 @@ This is the easiest way to capture click positions:
 click pick
 ```
 
-The picker will:
-1. Display all detected monitors
-2. Show your current mouse position in real-time
-3. Allow you to capture coordinates by:
-   - Pressing **SPACE** or **ENTER**
-   - Clicking the **LEFT MOUSE BUTTON**
-   - Pressing **ESC** to finish and save
+**How it works:**
+1. The tool detects all connected monitors and displays their information
+2. Move your mouse to the desired position
+3. Press **SPACE**, **ENTER**, or **LEFT MOUSE BUTTON** to capture the current position
+4. Press **ESC** to finish and save all captured coordinates
+5. Press **Ctrl+C** to exit without saving
+
+**Example output:**
+```
+============================================================
+Coordinate Picker Mode
+============================================================
+
+Detected monitors:
+  Monitor 0: 1920x1080 at (0, 0) (PRIMARY)
+  Monitor 1: 2560x1440 at (1920, 0)
+
+------------------------------------------------------------
+Instructions:
+  - Move your mouse to the desired position
+  - Press SPACE or ENTER to capture current position
+  - Click LEFT MOUSE BUTTON to capture current position
+  - Press ESC to finish and save coordinates
+  - Press Ctrl+C to exit without saving
+------------------------------------------------------------
+
+✓ Captured coordinate #1: Monitor 0, (100, 200) [Virtual: (100, 200)]
+```
 
 The coordinates will be automatically saved to `data/config/coordinates.json` (or the path you specify with `--config`).
 
@@ -162,6 +202,21 @@ This will:
 2. Detect all monitors
 3. Execute the click sequence for the specified number of loops
 4. Wait between clicks and between loops as configured
+
+**Example execution:**
+```
+Detected monitors:
+  Monitor 0: 1920x1080 at (0, 0) (PRIMARY)
+  Monitor 1: 2560x1440 at (1920, 0)
+Starting click loop: 3 iterations
+Coordinates to click: 4
+Wait between clicks: 1.0s
+Wait between loops: 2.0s
+Loop 1/3
+Loop 2/3
+Loop 3/3
+Click loop completed!
+```
 
 ## Configuration File Reference
 
@@ -327,11 +382,34 @@ click pick --config /path/to/myconfig.json
 
 ## Working with Multiple Monitors
 
-ClickLoop automatically detects all connected monitors and assigns them indices starting from 0.
+ClickLoop fully supports multi-monitor configurations. Understanding how monitors are numbered and how coordinates work is essential for proper setup.
+
+### Understanding Monitor Indices
+
+Monitors are automatically detected and numbered starting from `0`:
+
+- **Monitor 0**: First detected monitor (usually the primary monitor)
+- **Monitor 1**: Second monitor
+- **Monitor 2**: Third monitor
+- And so on...
+
+The primary monitor is automatically identified and marked in the output.
+
+### Coordinate System
+
+Each monitor uses its own coordinate system:
+
+- **Origin (0, 0)**: Top-left corner of each monitor
+- **X-axis**: Increases from left to right
+- **Y-axis**: Increases from top to bottom
+
+Coordinates are specified **relative to each monitor**, not the virtual desktop. For example:
+- `(0, 0)` on Monitor 0 is the top-left of Monitor 0
+- `(0, 0)` on Monitor 1 is the top-left of Monitor 1
 
 ### Finding Monitor Information
 
-Run the pick command to see monitor information:
+When you run `click run` or `click pick`, the tool displays all detected monitors:
 
 ```bash
 click pick
@@ -343,6 +421,28 @@ Detected monitors:
   Monitor 0: 1920x1080 at (0, 0) (PRIMARY)
   Monitor 1: 2560x1440 at (1920, 0)
 ```
+
+This shows:
+- Monitor index
+- Resolution (width x height)
+- Virtual desktop position
+- Whether it's the primary monitor
+
+### Using the Coordinate Picker with Multiple Monitors
+
+The `pick` command is the easiest way to set up coordinates for multi-monitor setups:
+
+1. Run `click pick`
+2. Move your mouse to the desired position on any monitor
+3. The tool displays:
+   - Which monitor the mouse is on
+   - Monitor-relative coordinates
+   - Virtual desktop coordinates
+4. Press SPACE/ENTER/LEFT CLICK to capture
+5. Repeat for all positions you need
+6. Press ESC to save
+
+The picker automatically detects which monitor contains your mouse cursor and saves the correct monitor index and relative coordinates.
 
 ### Setting Coordinates on Multiple Monitors
 
@@ -445,25 +545,108 @@ Click positions on two different monitors:
 
 ## Troubleshooting
 
-### "Configuration file not found"
+### Common Issues and Solutions
 
-Make sure you've created the configuration file at `data/config/coordinates.json` or specify the correct path with `--config`.
+#### "No monitors detected"
 
-### "No monitors detected"
+**Problem:** ClickLoop cannot detect any monitors.
 
-This usually indicates a problem with Windows API calls. Ensure you're running on Windows and that your display settings are configured correctly.
+**Solutions:**
+- Ensure your monitors are properly connected and powered on
+- Check Windows Display Settings to verify monitors are detected by Windows
+- Try restarting the application
+- Run ClickLoop with administrator privileges (if needed)
 
-### "No coordinates specified in configuration"
+#### "Configuration file not found"
 
-You must provide at least one coordinate in the `coordinates` array. Use `click pick` to capture coordinates or manually edit the JSON file.
+**Problem:** ClickLoop cannot find the configuration file.
 
-### "Invalid coordinate: monitor index out of range"
+**Solutions:**
+- Check the file path is correct (default: `data/config/coordinates.json`)
+- Use `--config` to specify a different path
+- Create the configuration file manually or use `click pick` to generate one
 
-The monitor index you specified doesn't exist. Run `click pick` to see which monitors are available (indices start at 0).
+#### "No coordinates specified in configuration"
 
-### Coordinates seem incorrect
+**Problem:** The configuration file doesn't contain any coordinates.
 
-Remember that coordinates are relative to each monitor, not the virtual screen. Use the interactive picker (`click pick`) to accurately capture positions.
+**Solutions:**
+- You must provide at least one coordinate in the `coordinates` array
+- Use `click pick` to capture coordinates or manually edit the JSON file
+
+#### "Invalid coordinate: monitor index out of range"
+
+**Problem:** A coordinate references a monitor that doesn't exist.
+
+**Solutions:**
+- Run `click run` to see which monitors are detected
+- Verify monitor indices in your configuration file (they start at 0)
+- If you disconnected a monitor, update your configuration to use valid monitor indices
+
+#### "Invalid coordinate: coordinate out of bounds"
+
+**Problem:** A coordinate is outside the bounds of the specified monitor.
+
+**Solutions:**
+- Check the monitor's resolution using `click run` or `click pick`
+- Ensure X and Y coordinates are within the monitor's width and height
+- Use `click pick` to capture valid coordinates interactively
+
+#### "Invalid JSON in configuration file"
+
+**Problem:** The configuration file contains invalid JSON.
+
+**Solutions:**
+- Validate your JSON syntax using a JSON validator
+- Check for missing commas, brackets, or quotes
+- Ensure all coordinate objects have `monitor`, `x`, and `y` fields
+- Use `click pick` to generate a valid configuration file
+
+#### Clicks are happening in the wrong location
+
+**Problem:** The mouse clicks at incorrect positions.
+
+**Solutions:**
+- Verify you're using monitor-relative coordinates, not virtual desktop coordinates
+- Re-capture coordinates using `click pick` if monitor arrangement changed
+- Check if Windows display scaling is affecting coordinates (ClickLoop uses physical pixels)
+- Ensure the application window hasn't moved or resized
+
+#### Application becomes unresponsive during clicking
+
+**Problem:** The system or application freezes during automated clicking.
+
+**Solutions:**
+- Increase `wait_between_clicks` to give the application more time to respond
+- Reduce the number of `loops` for testing
+- Check if the target application can handle rapid clicking
+- Ensure you're not clicking on system-critical areas
+
+#### Coordinates work on one system but not another
+
+**Problem:** Configuration works on one computer but fails on another.
+
+**Solutions:**
+- Monitor resolutions and arrangements differ between systems
+- Re-capture coordinates on each system using `click pick`
+- Don't share configuration files between systems with different monitor setups
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. Check the log file at `data/logs/clickloop.log` for detailed error messages
+2. Run with verbose logging to see what's happening
+3. Verify your Python version is 3.12 or higher
+4. Ensure you're running on Windows (this tool is Windows-specific)
+
+### Debugging Tips
+
+1. **Start simple**: Test with a single coordinate and one loop
+2. **Use the picker**: Always use `click pick` to capture coordinates rather than guessing
+3. **Check monitor info**: Run `click run` to see detected monitors before configuring
+4. **Test incrementally**: Add coordinates one at a time to identify problematic entries
+5. **Verify coordinates**: Use the picker's output to verify coordinates are within monitor bounds
 
 ## Development
 
