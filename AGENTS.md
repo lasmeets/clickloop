@@ -3,16 +3,20 @@
 Always check for a virtual environment first. Do not assume a virtual environment is activated. Use the venv when running commands.
 
 if Unix:
+
 - `./.venv/bin/python`
 - `./.venv/bin/pip`
 - `./.venv/bin/pylint`
 - `./.venv/bin/pytest`
 
 if Windows:
+
 - `.\.venv\Scripts\python`
 - `.\.venv\Scripts\pip`
 - `.\.venv\Scripts\pylint`
 - `.\.venv\Scripts\pytest`
+
+Run pytest before and after each turn so you know if your work broke any logic.
 
 Follow these rules when generating or modifying code in this repository:
 
@@ -20,15 +24,15 @@ Follow these rules when generating or modifying code in this repository:
 - Avoid deep nesting; split logic into small functions instead.
 - Prefer multiple `if` statements over large `if/elif/else` pyramids.
 - Use `else` sparingly and only when it clarifies binary logic.
+- Avoid using try except blocks unless absolutely necessary.
 - Catch only specific exceptions you expect and know how to handle.
-- Do NOT use `except Exception:` except at top-level app boundaries.
+- Do NOT use `except Exception:`
 - If you catch broadly for logging, re-raise so errors aren’t swallowed.
 - Keep functions focused on one responsibility with clear inputs/outputs.
 - Fail fast when invariants are violated; use precise error messages.
 - Prioritize clarity over cleverness—code should read top-to-bottom like a story.
 
 (See below for full guidelines and examples.)
-
 
 # AGENTS: Coding Style & Control-Flow Guidelines
 
@@ -38,7 +42,7 @@ The goals:
 
 - Code that reads top-to-bottom like a story
 - Minimal nesting and cognitive load
-- Exceptions and branches that reflect *specific, known* conditions
+- If necessary, use exceptions and branches that reflect *specific, known* conditions
 
 If you’re an agent writing or editing code here, follow the rules below.
 
@@ -84,16 +88,16 @@ def process_item(item):
 
 Rules:
 
-* Prefer a flat, linear “happy path”.
-* Use multiple `if` guard clauses instead of a single `if/elif/else` tower when it improves clarity.
-* `else:` is not banned, but avoid it when it hides which conditions actually lead there.
+- Prefer a flat, linear “happy path”.
+- Use multiple `if` guard clauses instead of a single `if/elif/else` tower when it improves clarity.
+- `else:` is not banned, but avoid it when it hides which conditions actually lead there.
 
 ### 1.2. Keep functions small and focused
 
 If you feel tempted to add multiple `else` branches or deeply nested conditionals:
 
-* First try splitting logic into smaller functions.
-* Each function should do one clear thing and return early when preconditions fail.
+- First try splitting logic into smaller functions.
+- Each function should do one clear thing and return early when preconditions fail.
 
 ---
 
@@ -103,46 +107,20 @@ If you feel tempted to add multiple `else` branches or deeply nested conditional
 
 Do not use `except Exception:` or `except BaseException:` unless you are:
 
-* At a top-level application boundary (CLI main, worker loop, web request boundary), or
-* Logging/cleaning up and then re-raising.
+- Logging/cleaning up and then re-raising.
 
 Rules:
 
-* Catch only the specific exceptions you expect and know how to handle.
-* If you don't know how to recover, don’t catch. Let it propagate.
+- Catch only the specific exceptions you expect and know how to handle.
+- If you don't know how to recover, don’t catch. Let it propagate.
 
 ### 2.2. Group related exceptions explicitly
 
 If multiple known failure modes can be handled in the same way, catch them as a tuple.
 
-✅ Good:
-
-```python
-def parse_int(value: str) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError) as e:
-        raise ValueError(f"Invalid integer: {value}") from e
-```
-
 ### 2.3. Logging + re-raise instead of swallowing
 
 If you need to observe unexpected exceptions, log and re-raise.
-
-✅ Good:
-
-```python
-import logging
-
-log = logging.getLogger(__name__)
-
-def run_task():
-    try:
-        do_work()
-    except Exception as e:  # boundary or diagnostic code only
-        log.error("Unexpected error in run_task", exc_info=True)
-        raise
-```
 
 This is acceptable at boundaries or in “monitoring” code. The key is: don’t swallow.
 
@@ -154,32 +132,10 @@ There are a few places where a broad catch is acceptable and sometimes required.
 
 ### 3.1. Top-level entry points
 
-At the very top of an application, it’s okay to catch `Exception` to control exit behavior and logging.
-
-✅ Acceptable:
-
-```python
-import sys
-import logging
-
-log = logging.getLogger(__name__)
-
-def main():
-    try:
-        run_app()
-    except Exception as e:  # allowed: process boundary
-        log.exception("Fatal error")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()
-```
-
 Guidelines:
 
-* Use this sparingly.
-* Keep the handler small (log, cleanup, exit).
-* Do not bury business logic inside such a handler.
+- Keep the handler small (log, cleanup, exit).
+- Do not bury business logic inside such a handler.
 
 ### 3.2. Custom exception hierarchies
 
@@ -213,30 +169,11 @@ This avoids `except Exception:` while still providing a single, meaningful “um
 
 Python style encourages EAFP (Easier to Ask Forgiveness than Permission) — using try/except instead of pre-checking everything — but we still want specificity.
 
-### 4.1. Use EAFP with specific exceptions
-
-✅ Good:
-
-```python
-def get_mapping_value(mapping, key, default=None):
-    try:
-        return mapping[key]
-    except KeyError:
-        return default
-```
+### 4.1. Use EAFP for specific exceptions
 
 ### 4.2. Use LBYL sparingly for cheap, obvious checks
 
-For very cheap validations or when the exception would be ambiguous:
-
-✅ Acceptable:
-
-```python
-def parse_positive_int(s: str) -> int:
-    if not s.isdigit():
-        raise ValueError(f"Not a positive integer: {s}")
-    return int(s)
-```
+For very cheap validations or when the exception would be ambiguous, use LBYL.
 
 Avoid doing heavy or redundant pre-checks that just duplicate what the operation itself will tell you via exceptions.
 
@@ -278,16 +215,16 @@ def categorize(user):
 
 Both are valid Python. The first style is preferred here because:
 
-* Each condition stands alone.
-* The “fall-through” default path is visually obvious at the end.
-* You don’t need to mentally manage the full `if/elif/elif/else` ladder.
+- Each condition stands alone.
+- The “fall-through” default path is visually obvious at the end.
+- You don’t need to mentally manage the full `if/elif/elif/else` ladder.
 
 ### 5.2. When `else` *is* okay
 
 `else` is fine when:
 
-* There are only 1–2 branches and it aids readability.
-* The logic is truly binary.
+- There are only 1–2 branches and it aids readability.
+- The logic is truly binary.
 
 Example:
 
@@ -306,8 +243,8 @@ Use judgement: prefer clarity over dogma.
 
 ## 6. Error Messages and Fail-Fast Behavior
 
-* Fail early and loudly when invariants are broken.
-* Raise exceptions with messages that explain what and why, not just that something failed.
+- Fail early and loudly when invariants are broken.
+- Raise exceptions with messages that explain what and why, not just that something failed.
 
 ✅ Good:
 
@@ -324,10 +261,7 @@ def get_user(id: int) -> User:
 
 We care about linters (e.g. Pylint) and generally do not want to disable rules globally.
 
-If you *must* use a broad exception (e.g. at a top-level boundary):
-
-* Justify it in code structure (e.g., it’s the entry point).
-* If needed, disable the warning locally, not globally.
+- Do not disable warnings
 
 Example:
 
@@ -350,11 +284,8 @@ When generating or editing code in this repository:
 
 1. Use guard clauses and early returns.
 2. Keep control flow flat when possible. Avoid deep nesting and giant `if/elif/else` ladders.
-3. Catch specific exceptions, not `Exception`, except at:
-    - Top-level entry points
-    - Worker loops / process boundaries
-    - Logging+re-raise wrappers
-4. Don’t swallow exceptions silently. Log and re-raise if you don’t know how to recover.
+3. Catch specific exceptions, not `Exception`
+4. Don’t swallow exceptions silently.
 5. Favor small, focused functions that reflect one clear responsibility.
 
 If a simpler structure conflicts with these rules, prioritize clarity and explicitness over cleverness.
