@@ -1,8 +1,12 @@
 """Mouse clicking functionality."""
 
+import time
 import ctypes
+import logging
 from ctypes import POINTER, Structure, c_long, c_uint
 from ctypes.wintypes import DWORD
+
+logger = logging.getLogger("clickloop")
 
 # Windows API structures and constants
 INPUT_MOUSE = 0
@@ -87,16 +91,62 @@ def convert_to_virtual_coords(monitor_index, x, y, monitors):
     return virtual_x, virtual_y
 
 
-def click_at(x, y):
+def click_at(x, y, max_retries=3):
     """
     Perform a mouse click at the specified virtual screen coordinates.
+
+    Retries with exponential backoff if the click fails due to transient errors
+    (e.g., screen lock, system events interfering with API calls).
+
+    Args:
+        x: Virtual screen X coordinate.
+        y: Virtual screen Y coordinate.
+        max_retries: Maximum number of retry attempts (default: 3).
+
+    Raises:
+        RuntimeError: If the click operation fails after all retries.
+    """
+    backoff_delay = 0.5  # Start at 0.5 seconds
+    last_error = None
+
+    for attempt in range(max_retries):
+        try:
+            _perform_click(x, y)
+            return
+        except RuntimeError as e:
+            last_error = e
+
+            if attempt < max_retries - 1:
+                logger.warning(
+                    "Click at (%s, %s) failed (attempt %s/%s): %s. "
+                    "Retrying in %.2fs...",
+                    x, y, attempt + 1, max_retries, str(e), backoff_delay
+                )
+                time.sleep(backoff_delay)
+                backoff_delay *= 2  # Exponential backoff
+            else:
+                logger.warning(
+                    "Click at (%s, %s) failed after %s attempts. Skipping this click.",
+                    x, y, max_retries
+                )
+
+    # All retries failed - raise the last error
+    raise last_error
+
+
+def _perform_click(x, y):
+    """
+    Perform the actual mouse click operation without retries.
+
+    This is the core click implementation separated out to allow retry logic
+    in click_at to handle transient failures.
 
     Args:
         x: Virtual screen X coordinate.
         y: Virtual screen Y coordinate.
 
     Raises:
-        RuntimeError: If the click operation fails.
+        RuntimeError: If any step of the click operation fails.
     """
     # Move cursor to position
     if not user32.SetCursorPos(int(x), int(y)):

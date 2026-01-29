@@ -46,6 +46,8 @@ def run_click_loop(config, monitors):
         )
         virtual_coords.append((virtual_x, virtual_y))
 
+    skipped_clicks = 0
+
     for loop_num in range(1, loops + 1):
         logger.info("Loop %s/%s", loop_num, loops)
 
@@ -56,7 +58,14 @@ def run_click_loop(config, monitors):
                 coord["monitor"], coord["x"], coord["y"], virtual_x, virtual_y
             )
 
-            click_at(virtual_x, virtual_y)
+            try:
+                click_at(virtual_x, virtual_y)
+            except RuntimeError as e:
+                logger.error(
+                    "Failed to click at (%s, %s) after retries. Skipping this click. Error: %s",
+                    virtual_x, virtual_y, str(e)
+                )
+                skipped_clicks += 1
 
             if coord_idx < len(virtual_coords) - 1 and wait_between_clicks > 0:
                 time.sleep(wait_between_clicks)

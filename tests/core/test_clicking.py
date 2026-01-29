@@ -26,30 +26,58 @@ class TestClickAt:
         assert mock_user32.SendInput.call_count == 2
 
     @patch("clickloop.core.clicking.user32")
-    def test_click_at_set_cursor_fails(self, mock_user32):
-        """Test that RuntimeError is raised when SetCursorPos fails."""
+    def test_click_at_set_cursor_fails_immediately(self, mock_user32):
+        """Test that RuntimeError is raised after retries when SetCursorPos fails."""
         mock_user32.SetCursorPos.return_value = False
 
         with pytest.raises(RuntimeError, match="Failed to set cursor position"):
-            click_at(100, 200)
+            click_at(100, 200, max_retries=1)
+
+    @patch("clickloop.core.clicking.time.sleep")
+    @patch("clickloop.core.clicking.user32")
+    def test_click_at_retries_on_set_cursor_failure(self, mock_user32, mock_sleep):
+        """Test that click_at retries when SetCursorPos fails initially."""
+        # Fail twice, succeed on third
+        mock_user32.SetCursorPos.side_effect = [False, False, True]
+        mock_user32.SendInput.return_value = 1
+
+        click_at(100, 200, max_retries=3)
+
+        # SetCursorPos should be called 3 times (once per attempt)
+        assert mock_user32.SetCursorPos.call_count == 3
+        # Should have slept twice (between retries)
+        assert mock_sleep.call_count == 2
+
+    @patch("clickloop.core.clicking.time.sleep")
+    @patch("clickloop.core.clicking.user32")
+    def test_click_at_exponential_backoff(self, mock_user32, mock_sleep):
+        """Test that click_at uses exponential backoff between retries."""
+        # Fail all attempts
+        mock_user32.SetCursorPos.return_value = False
+
+        with pytest.raises(RuntimeError):
+            click_at(100, 200, max_retries=3)
+
+        # Should sleep with exponential backoff: 0.5s, 1.0s
+        mock_sleep.assert_any_call(0.5)
+        mock_sleep.assert_any_call(1.0)
+        assert mock_sleep.call_count == 2
 
     @patch("clickloop.core.clicking.user32")
-    def test_click_at_send_input_down_fails(self, mock_user32):
-        """Test that RuntimeError is raised when SendInput for mouse down fails."""
+    def test_click_at_send_input_down_fails_then_succeeds(self, mock_user32):
+        """Test that click_at retries when SendInput for mouse down fails."""
         mock_user32.SetCursorPos.return_value = True
-        mock_user32.SendInput.side_effect = [0, 1]  # First call fails, second succeeds
+        # First attempt: SetCursorPos succeeds but SendInput fails
+        # Second attempt: all succeed
+        mock_user32.SendInput.side_effect = [0, 1, 1]  # First click fails on down event, second succeeds
 
-        with pytest.raises(RuntimeError, match="Failed to send mouse down event"):
-            click_at(100, 200)
+        with patch("clickloop.core.clicking.time.sleep"):
+            click_at(100, 200, max_retries=2)
 
-    @patch("clickloop.core.clicking.user32")
-    def test_click_at_send_input_up_fails(self, mock_user32):
-        """Test that RuntimeError is raised when SendInput for mouse up fails."""
-        mock_user32.SetCursorPos.return_value = True
-        mock_user32.SendInput.side_effect = [1, 0]  # First call succeeds, second fails
-
-        with pytest.raises(RuntimeError, match="Failed to send mouse up event"):
-            click_at(100, 200)
+        # SetCursorPos should be called twice (once per attempt)
+        assert mock_user32.SetCursorPos.call_count == 2
+        # SendInput should be called 3 times total (first attempt fails early, second succeeds with 2 calls)
+        assert mock_user32.SendInput.call_count == 3
 
     @patch("clickloop.core.clicking.user32")
     def test_click_at_with_float_coordinates(self, mock_user32):
@@ -61,6 +89,17 @@ class TestClickAt:
 
         # Verify coordinates were converted to int
         mock_user32.SetCursorPos.assert_called_once_with(100, 200)
+
+    @patch("clickloop.core.clicking.user32")
+    def test_click_at_default_max_retries_is_three(self, mock_user32):
+        """Test that default max_retries is 3."""
+        mock_user32.SetCursorPos.return_value = False
+
+        with pytest.raises(RuntimeError):
+            click_at(100, 200)  # No max_retries argument
+
+        # Should attempt 3 times by default
+        assert mock_user32.SetCursorPos.call_count == 3
 
 
 class TestRunClickLoop:
@@ -158,11 +197,45 @@ class TestRunClickLoop:
     def test_run_click_loop_handles_click_error(
         self, mock_click_at, _mock_sleep, sample_config, sample_monitors
     ):
-        """Test that RuntimeError from click_at is propagated."""
+        """Test that RuntimeError from click_at is caught and logged, loop continues."""
+        config = sample_config.copy()
+        config["loops"] = 2
+        config["coordinates"] = [
+            {"monitor": 0, "x": 100, "y": 200},
+            {"monitor": 1, "x": 300, "y": 400},
+        ]
+
+        # First click in first loop fails, rest succeed
+        mock_click_at.side_effect = [
+            RuntimeError("Click failed"),  # Loop 1, coord 0
+            None,                           # Loop 1, coord 1
+            None,                           # Loop 2, coord 0
+            None,                           # Loop 2, coord 1
+        ]
+
+        # Should not raise - errors are caught and logged
+        run_click_loop(config, sample_monitors)
+
+        # All 4 clicks should still be attempted
+        assert mock_click_at.call_count == 4
+
+    @patch("clickloop.commands.run.time.sleep")
+    @patch("clickloop.commands.run.click_at")
+    def test_run_click_loop_skips_failed_clicks(
+        self, mock_click_at, _mock_sleep, sample_config, sample_monitors
+    ):
+        """Test that failed clicks are skipped but loop continues."""
         config = sample_config.copy()
         config["loops"] = 1
+        config["coordinates"] = [
+            {"monitor": 0, "x": 100, "y": 200},
+        ]
 
-        mock_click_at.side_effect = RuntimeError("Click failed")
+        # All clicks fail
+        mock_click_at.side_effect = RuntimeError("All clicks fail")
 
-        with pytest.raises(RuntimeError, match="Click failed"):
-            run_click_loop(config, sample_monitors)
+        # Should not raise - error is logged and skipped
+        run_click_loop(config, sample_monitors)
+
+        # Click should still be attempted
+        assert mock_click_at.call_count == 1
