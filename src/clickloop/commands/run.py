@@ -140,4 +140,3 @@ def run_command(args):
     except (ValueError, RuntimeError) as e:
         logger.error("Error during execution: %s", e)
         sys.exit(1)
-
