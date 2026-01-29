@@ -1,8 +1,7 @@
 """Run command - executes the click loop."""
 
-import logging
-import sys
 import time
+import logging
 
 from clickloop.core import (
     click_at,
@@ -85,19 +84,16 @@ def run_command(args):
         args: Parsed command-line arguments.
 
     Raises:
-        SystemExit: On error or completion.
+        FileNotFoundError: If configuration file is not found.
+        ValueError: If configuration is invalid.
+        RuntimeError: If monitor detection or clicking fails.
     """
     # Load configuration
     try:
         config = load_config(args.config)
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         logger.warning("Configuration file '%s' not found. Using defaults.", args.config)
-        config = {
-            "loops": 10,
-            "wait_between_clicks": 1.0,
-            "wait_between_loops": 2.0,
-            "coordinates": [],
-        }
+        raise FileNotFoundError(f"Configuration file not found: {args.config}") from e
 
     # Override with CLI arguments
     if args.loops is not None:
@@ -114,38 +110,26 @@ def run_command(args):
         validate_config(config)
     except ValueError as e:
         logger.error("Invalid configuration: %s", e)
-        sys.exit(1)
+        raise ValueError(f"Invalid configuration: {e}") from e
 
     # Detect monitors
-    try:
-        monitors = get_monitors()
-    except RuntimeError as e:
-        logger.error(str(e))
-        sys.exit(1)
+    monitors = get_monitors()
 
     if len(monitors) == 0:
         logger.error("No monitors detected")
-        sys.exit(1)
+        raise RuntimeError("No monitors detected")
 
     print_monitor_info(monitors)
 
     # Validate coordinates against monitors
     if len(config["coordinates"]) == 0:
         logger.error("No coordinates specified in configuration")
-        sys.exit(1)
+        raise ValueError("No coordinates specified in configuration")
 
-    try:
-        for coord in config["coordinates"]:
-            convert_to_virtual_coords(
-                coord["monitor"], coord["x"], coord["y"], monitors
-            )
-    except ValueError as e:
-        logger.error("Invalid coordinate: %s", e)
-        sys.exit(1)
+    for coord in config["coordinates"]:
+        convert_to_virtual_coords(
+            coord["monitor"], coord["x"], coord["y"], monitors
+        )
 
     # Run the click loop
-    try:
-        run_click_loop(config, monitors)
-    except (ValueError, RuntimeError) as e:
-        logger.error("Error during execution: %s", e)
-        sys.exit(1)
+    run_click_loop(config, monitors)

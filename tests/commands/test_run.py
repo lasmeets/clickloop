@@ -45,39 +45,22 @@ class TestRunCommand:
         mock_run_click_loop.assert_called_once()
 
     @patch("clickloop.commands.run.load_config")
-    @patch("clickloop.commands.run.logger")
-    @patch("clickloop.commands.run.sys")
-    def test_run_command_missing_config_file(self, mock_sys, mock_logger, mock_load_config):
-        """Test run command with missing config file (uses defaults)."""
+    def test_run_command_missing_config_file(self, mock_load_config):
+        """Test run command with missing config file raises FileNotFoundError."""
         args = Mock()
         args.config = "nonexistent.json"
         args.loops = None
         args.wait_clicks = None
         args.wait_loops = None
 
-        mock_load_config.side_effect = FileNotFoundError()
-        # Make sys.exit raise SystemExit to properly simulate behavior
-        mock_sys.exit.side_effect = SystemExit(1)
+        mock_load_config.side_effect = FileNotFoundError("File not found")
 
-        with patch("clickloop.commands.run.get_monitors") as mock_get_monitors, \
-             patch("clickloop.commands.run.validate_config") as mock_validate:
-            mock_get_monitors.return_value = [Mock()]
-            # validate_config will fail because default config has no coordinates
-            mock_validate.side_effect = ValueError("No coordinates")
-
-            with pytest.raises(SystemExit):
-                run_command(args)
-
-            mock_logger.warning.assert_called_once()
-            # sys.exit may be called multiple times due to multiple error paths
-            assert mock_sys.exit.called
-            assert mock_sys.exit.call_args[0][0] == 1
+        with pytest.raises(FileNotFoundError):
+            run_command(args)
 
     @patch("clickloop.commands.run.load_config")
-    @patch("clickloop.commands.run.logger")
-    @patch("clickloop.commands.run.sys")
-    def test_run_command_invalid_config(self, mock_sys, mock_logger, mock_load_config):
-        """Test run command with invalid configuration."""
+    def test_run_command_invalid_config(self, mock_load_config):
+        """Test run command with invalid configuration raises ValueError."""
         args = Mock()
         args.config = "test_config.json"
         args.loops = None
@@ -87,24 +70,15 @@ class TestRunCommand:
         # Provide a config that will fail validation but has coordinates key to avoid KeyError
         mock_load_config.return_value = {"invalid": "config", "coordinates": []}
 
-        # Make sys.exit raise SystemExit to properly simulate behavior
-        mock_sys.exit.side_effect = SystemExit(1)
-
         with patch("clickloop.commands.run.validate_config") as mock_validate:
             mock_validate.side_effect = ValueError("Invalid config")
 
-            with pytest.raises(SystemExit):
+            with pytest.raises(ValueError):
                 run_command(args)
 
-            mock_logger.error.assert_called_once()
-            assert mock_sys.exit.called
-            assert mock_sys.exit.call_args[0][0] == 1
-
     @patch("clickloop.commands.run.load_config")
-    @patch("clickloop.commands.run.logger")
-    @patch("clickloop.commands.run.sys")
-    def test_run_command_no_monitors(self, mock_sys, mock_logger, mock_load_config, sample_config):
-        """Test run command when no monitors detected."""
+    def test_run_command_no_monitors(self, mock_load_config, sample_config):
+        """Test run command when no monitors detected raises RuntimeError."""
         args = Mock()
         args.config = "test_config.json"
         args.loops = None
@@ -112,32 +86,19 @@ class TestRunCommand:
         args.wait_loops = None
 
         mock_load_config.return_value = sample_config
-        # Make sys.exit raise SystemExit to properly simulate behavior
-        mock_sys.exit.side_effect = SystemExit(1)
 
         with patch("clickloop.commands.run.validate_config"), \
-             patch("clickloop.commands.run.get_monitors") as mock_get_monitors, \
-             patch("clickloop.commands.run.convert_to_virtual_coords"):
+             patch("clickloop.commands.run.get_monitors") as mock_get_monitors:
             mock_get_monitors.return_value = []
 
-            with pytest.raises(SystemExit):
+            with pytest.raises(RuntimeError, match="No monitors detected"):
                 run_command(args)
 
-            # Error may be called multiple times (no monitors, then invalid coordinates)
-            assert mock_logger.error.called
-            # Check that "No monitors detected" error was logged
-            error_calls = [str(call) for call in mock_logger.error.call_args_list]
-            assert any("No monitors detected" in str(call) for call in error_calls)
-            assert mock_sys.exit.called
-            assert mock_sys.exit.call_args[0][0] == 1
-
     @patch("clickloop.commands.run.load_config")
-    @patch("clickloop.commands.run.logger")
-    @patch("clickloop.commands.run.sys")
     def test_run_command_monitor_detection_fails(
-        self, mock_sys, mock_logger, mock_load_config, sample_config
+        self, mock_load_config, sample_config
     ):
-        """Test run command when monitor detection fails."""
+        """Test run command when monitor detection fails raises RuntimeError."""
         args = Mock()
         args.config = "test_config.json"
         args.loops = None
@@ -145,27 +106,17 @@ class TestRunCommand:
         args.wait_loops = None
 
         mock_load_config.return_value = sample_config
-
-        # Make sys.exit raise SystemExit to properly simulate behavior
-        mock_sys.exit.side_effect = SystemExit(1)
 
         with patch("clickloop.commands.run.validate_config"), \
              patch("clickloop.commands.run.get_monitors") as mock_get_monitors:
             mock_get_monitors.side_effect = RuntimeError("Monitor detection failed")
 
-            with pytest.raises(SystemExit):
+            with pytest.raises(RuntimeError, match="Monitor detection failed"):
                 run_command(args)
 
-            # Should log the error and exit
-            mock_logger.error.assert_called_once()
-            assert mock_sys.exit.called
-            assert mock_sys.exit.call_args[0][0] == 1
-
     @patch("clickloop.commands.run.load_config")
-    @patch("clickloop.commands.run.logger")
-    @patch("clickloop.commands.run.sys")
-    def test_run_command_no_coordinates(self, mock_sys, mock_logger, mock_load_config, sample_monitors):
-        """Test run command when no coordinates specified."""
+    def test_run_command_no_coordinates(self, mock_load_config, sample_monitors):
+        """Test run command when no coordinates specified raises ValueError."""
         args = Mock()
         args.config = "test_config.json"
         args.loops = None
@@ -174,26 +125,19 @@ class TestRunCommand:
 
         config_without_coords = {"loops": 5, "wait_between_clicks": 1.0, "wait_between_loops": 2.0, "coordinates": []}
         mock_load_config.return_value = config_without_coords
-        # Make sys.exit raise SystemExit to properly simulate behavior
-        mock_sys.exit.side_effect = SystemExit(1)
 
         with patch("clickloop.commands.run.validate_config"), \
              patch("clickloop.commands.run.get_monitors") as mock_get_monitors:
             mock_get_monitors.return_value = sample_monitors
 
-            with pytest.raises(SystemExit):
+            with pytest.raises(ValueError, match="No coordinates specified"):
                 run_command(args)
 
-            mock_logger.error.assert_called_once()
-            mock_sys.exit.assert_called_once_with(1)
-
     @patch("clickloop.commands.run.load_config")
-    @patch("clickloop.commands.run.logger")
-    @patch("clickloop.commands.run.sys")
     def test_run_command_invalid_coordinate(
-        self, mock_sys, mock_logger, mock_load_config, sample_config, sample_monitors
+        self, mock_load_config, sample_config, sample_monitors
     ):
-        """Test run command with invalid coordinate."""
+        """Test run command with invalid coordinate raises ValueError."""
         args = Mock()
         args.config = "test_config.json"
         args.loops = None
@@ -201,8 +145,6 @@ class TestRunCommand:
         args.wait_loops = None
 
         mock_load_config.return_value = sample_config
-        # Make sys.exit raise SystemExit to properly simulate behavior
-        mock_sys.exit.side_effect = SystemExit(1)
 
         with patch("clickloop.commands.run.validate_config"), \
              patch("clickloop.commands.run.get_monitors") as mock_get_monitors, \
@@ -211,16 +153,8 @@ class TestRunCommand:
             mock_get_monitors.return_value = sample_monitors
             mock_convert.side_effect = ValueError("Invalid coordinate")
 
-            with pytest.raises(SystemExit):
+            with pytest.raises(ValueError, match="Invalid coordinate"):
                 run_command(args)
-
-            # Error may be called multiple times (invalid coordinate, then execution error)
-            assert mock_logger.error.called
-            # Check that "Invalid coordinate" error was logged
-            error_calls = [str(call) for call in mock_logger.error.call_args_list]
-            assert any("Invalid coordinate" in str(call) for call in error_calls)
-            assert mock_sys.exit.called
-            assert mock_sys.exit.call_args[0][0] == 1
 
     @patch("clickloop.commands.run.load_config")
     @patch("clickloop.commands.run.run_click_loop")
@@ -323,10 +257,8 @@ class TestRunCommand:
             assert call_args["loops"] == sample_config["loops"]
 
     @patch("clickloop.commands.run.load_config")
-    @patch("clickloop.commands.run.logger")
-    @patch("clickloop.commands.run.sys")
     def test_run_command_click_loop_error(
-        self, mock_sys, mock_logger, mock_load_config, sample_config, sample_monitors
+        self, mock_load_config, sample_config, sample_monitors
     ):
         """Test run command when click loop raises an error."""
         args = Mock()
@@ -336,8 +268,6 @@ class TestRunCommand:
         args.wait_loops = None
 
         mock_load_config.return_value = sample_config
-        # Make sys.exit raise SystemExit to properly simulate behavior
-        mock_sys.exit.side_effect = SystemExit(1)
 
         with patch("clickloop.commands.run.validate_config"), \
              patch("clickloop.commands.run.get_monitors") as mock_get_monitors, \
@@ -348,9 +278,6 @@ class TestRunCommand:
             mock_convert.return_value = (100, 200)
             mock_run.side_effect = RuntimeError("Click failed")
 
-            with pytest.raises(SystemExit):
+            with pytest.raises(RuntimeError, match="Click failed"):
                 run_command(args)
-
-            mock_logger.error.assert_called_once()
-            mock_sys.exit.assert_called_once_with(1)
 

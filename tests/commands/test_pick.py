@@ -546,70 +546,54 @@ class TestPickCommand:
 
         mock_pick_coordinates.assert_called_once_with("test_config.json")
 
-    @patch("clickloop.commands.pick.logger")
     @patch("clickloop.commands.pick.pick_coordinates")
-    @patch("clickloop.commands.pick.sys")
     def test_pick_command_runtime_error(
-        self, mock_sys, mock_pick_coordinates, mock_logger
+        self, mock_pick_coordinates
     ):
-        """Test that RuntimeError is handled and logged."""
+        """Test that RuntimeError is raised by pick_command."""
         args = Mock()
         args.config = "test_config.json"
 
         mock_pick_coordinates.side_effect = RuntimeError("Monitor detection failed")
 
-        pick_command(args)
+        with pytest.raises(RuntimeError, match="Monitor detection failed"):
+            pick_command(args)
 
-        mock_logger.error.assert_called_once()
-        mock_sys.exit.assert_called_once_with(1)
-
-    @patch("clickloop.commands.pick.logger")
     @patch("clickloop.commands.pick.pick_coordinates")
-    @patch("clickloop.commands.pick.sys")
     def test_pick_command_value_error(
-        self, mock_sys, mock_pick_coordinates, mock_logger
+        self, mock_pick_coordinates
     ):
-        """Test that ValueError is handled and logged."""
+        """Test that ValueError is raised by pick_command."""
         args = Mock()
         args.config = "test_config.json"
 
         mock_pick_coordinates.side_effect = ValueError("Invalid config")
 
-        pick_command(args)
+        with pytest.raises(ValueError, match="Invalid config"):
+            pick_command(args)
 
-        mock_logger.error.assert_called_once()
-        mock_sys.exit.assert_called_once_with(1)
-
-    @patch("clickloop.commands.pick.logger")
     @patch("clickloop.commands.pick.pick_coordinates")
-    @patch("clickloop.commands.pick.sys")
     def test_pick_command_os_error(
-        self, mock_sys, mock_pick_coordinates, mock_logger
+        self, mock_pick_coordinates
     ):
-        """Test that OSError is handled and logged."""
+        """Test that OSError is raised by pick_command."""
         args = Mock()
         args.config = "test_config.json"
 
         mock_pick_coordinates.side_effect = OSError("File not found")
 
-        pick_command(args)
+        with pytest.raises(OSError, match="File not found"):
+            pick_command(args)
 
-        mock_logger.error.assert_called_once()
-        mock_sys.exit.assert_called_once_with(1)
-
-    @patch("clickloop.commands.pick.logger")
     @patch("clickloop.commands.pick.pick_coordinates")
-    @patch("clickloop.commands.pick.sys")
     def test_pick_command_keyboard_interrupt(
-        self, mock_sys, mock_pick_coordinates, mock_logger
+        self, mock_pick_coordinates
     ):
-        """Test that KeyboardInterrupt is handled gracefully."""
+        """Test that KeyboardInterrupt is raised by pick_command."""
         args = Mock()
         args.config = "test_config.json"
 
         mock_pick_coordinates.side_effect = KeyboardInterrupt()
 
-        pick_command(args)
-
-        mock_logger.info.assert_called_once()
-        mock_sys.exit.assert_called_once_with(0)
+        with pytest.raises(KeyboardInterrupt):
+            pick_command(args)

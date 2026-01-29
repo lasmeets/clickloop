@@ -2,7 +2,6 @@
 
 import ctypes
 import logging
-import sys
 import time
 from ctypes import POINTER, Structure, c_int, c_long, windll
 from ctypes.wintypes import BOOL
@@ -207,14 +206,10 @@ def pick_command(args):
         args: Parsed command-line arguments.
 
     Raises:
-        SystemExit: On error or completion.
+        RuntimeError: If monitor detection fails.
+        ValueError: If coordinates are invalid.
+        OSError: If file operations fail.
+        KeyboardInterrupt: If user interrupts (will be handled by main).
     """
-    try:
-        pick_coordinates(args.config)
-    except (RuntimeError, ValueError, OSError) as e:
-        logger.error("Error in coordinate picker: %s", e)
-        sys.exit(1)
-    except KeyboardInterrupt:
-        logger.info("Coordinate picker interrupted by user")
-        sys.exit(0)
+    pick_coordinates(args.config)
 

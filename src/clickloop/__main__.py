@@ -6,11 +6,15 @@ Uses only Python standard library (ctypes for Windows API).
 """
 
 import argparse
+import logging
+import sys
 
 from .commands import pick_command, run_command
 from .utils.arger import ColourHelpFormatter
 from .utils.logging import setup_logging
 from .utils.paths import get_package_config_dir
+
+logger = logging.getLogger("clickloop")
 
 
 def main():
@@ -77,7 +81,23 @@ def main():
     args = parser.parse_args()
 
     # Execute the appropriate command
-    args.func(args)
+    try:
+        args.func(args)
+    except FileNotFoundError as e:
+        logger.error(str(e))
+        sys.exit(1)
+    except ValueError as e:
+        logger.error(str(e))
+        sys.exit(1)
+    except RuntimeError as e:
+        logger.error(str(e))
+        sys.exit(1)
+    except OSError as e:
+        logger.error(str(e))
+        sys.exit(1)
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
