@@ -12,6 +12,7 @@ from clickloop.core import (
     get_monitors,
     save_coordinates_to_config,
 )
+from clickloop.utils.paths import get_package_config_dir
 
 logger = logging.getLogger("clickloop")
 
@@ -173,7 +174,7 @@ def pick_coordinates(config_path=None):
 
     # Determine config file path
     if config_path is None:
-        default_path = "data/config/coordinates.json"
+        default_path = str(get_package_config_dir() / "coordinates.json")
         try:
             response = input(
                 f"\nSave to config file? [Enter for default '{default_path}', "

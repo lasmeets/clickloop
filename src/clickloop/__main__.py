@@ -10,6 +10,7 @@ import argparse
 from .commands import pick_command, run_command
 from .utils.arger import ColourHelpFormatter
 from .utils.logging import setup_logging
+from .utils.paths import get_package_config_dir
 
 
 def main():
@@ -32,11 +33,12 @@ def main():
         description="Execute automated clicking based on configuration file",
         formatter_class=ColourHelpFormatter,
     )
+    default_config_path = str(get_package_config_dir() / "coordinates.json")
     run_parser.add_argument(
         "--config",
         type=str,
-        default="data/config/coordinates.json",
-        help="Path to configuration file (default: data/config/coordinates.json)",
+        default=default_config_path,
+        help=f"Path to configuration file (default: {default_config_path})",
     )
     run_parser.add_argument(
         "--loops",
@@ -67,8 +69,8 @@ def main():
     pick_parser.add_argument(
         "--config",
         type=str,
-        default="data/config/coordinates.json",
-        help="Path to configuration file to save coordinates (default: data/config/coordinates.json)",
+        default=default_config_path,
+        help=f"Path to configuration file to save coordinates (default: {default_config_path})",
     )
     pick_parser.set_defaults(func=pick_command)
 

@@ -1,5 +1,6 @@
 """Tests for pick command - coordinate picker functionality."""
 
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -388,10 +389,14 @@ class TestPickCoordinates:
         with patch("builtins.input", return_value=""):
             pick_coordinates()
 
-        # Verify save was called with default path
+        # Verify save was called with absolute package config path
         mock_save_config.assert_called_once()
         call_args = mock_save_config.call_args
-        assert call_args[0][1] == "data/config/coordinates.json"
+        saved_path = call_args[0][1]
+        
+        # Should be absolute path to coordinates.json in package config dir
+        assert saved_path.endswith("data/config/coordinates.json") or saved_path.endswith("data\\config\\coordinates.json")
+        assert saved_path.startswith(str(Path(__file__).parent.parent.parent))  # Should be under package
 
     @patch("clickloop.commands.pick.get_monitor_for_point")
     @patch("clickloop.commands.pick.get_monitors")

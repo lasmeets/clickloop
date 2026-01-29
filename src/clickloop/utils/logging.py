@@ -1,8 +1,9 @@
 """Logging configuration for ClickLoop."""
 
 import logging
-from pathlib import Path
 from logging.handlers import RotatingFileHandler
+
+from clickloop.utils.paths import get_package_logs_dir
 
 
 def setup_logging(log_level=logging.INFO):
@@ -16,8 +17,8 @@ def setup_logging(log_level=logging.INFO):
     Args:
         log_level: Logging level (default: logging.INFO)
     """
-    # Create logs directory if it doesn't exist
-    log_dir = Path("data/logs")
+    # Get logs directory relative to package installation
+    log_dir = get_package_logs_dir()
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Configure root logger
