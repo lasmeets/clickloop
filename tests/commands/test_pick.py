@@ -343,7 +343,7 @@ class TestPickCoordinates:
         mock_save_config.assert_called_once()
         call_args = mock_save_config.call_args
         assert call_args[0][1] == test_config_path
-        assert call_args[1]["merge"] is True
+        assert call_args[1]["merge"] is False
 
     @patch("clickloop.commands.pick.save_coordinates_to_config")
     @patch("clickloop.commands.pick.get_monitor_for_point")

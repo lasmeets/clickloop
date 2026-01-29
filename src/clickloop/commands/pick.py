@@ -191,7 +191,7 @@ def pick_coordinates(config_path=None):
 
     # Save to config file
     try:
-        save_coordinates_to_config(captured_coords, config_path, merge=True)
+        save_coordinates_to_config(captured_coords, config_path, merge=False)
         print(f"\n✓ Successfully saved {len(captured_coords)} coordinate(s) to {config_path}")
     except (ValueError, OSError) as e:
         print(f"\n✗ Error saving coordinates: {e}")
