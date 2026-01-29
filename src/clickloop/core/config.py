@@ -1,9 +1,40 @@
 """Configuration loading and validation."""
 
 import json
+import shutil
 import logging
+from pathlib import Path
 
 logger = logging.getLogger("clickloop")
+
+
+def _try_copy_example_config(config_path):
+    """
+    Try to copy example config file if it exists.
+
+    Args:
+        config_path: Path to the desired config file.
+
+    Returns:
+        bool: True if example was copied, False otherwise.
+    """
+    example_path = Path(str(config_path) + ".example")
+
+    if example_path.exists():
+        try:
+            config_dir = Path(config_path).parent
+            config_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy(str(example_path), str(config_path))
+            logger.info("Created config from example file: %s", config_path)
+            return True
+        except (OSError, shutil.Error) as exc:
+            logger.warning(
+                "Failed to copy example config from %s: %s",
+                example_path, str(exc)
+            )
+            return False
+
+    return False
 
 
 def load_config(config_path):
@@ -17,16 +48,23 @@ def load_config(config_path):
         dict: Configuration dictionary with defaults applied.
 
     Raises:
-        FileNotFoundError: If config file doesn't exist.
+        FileNotFoundError: If config file doesn't exist and example can't be copied.
         json.JSONDecodeError: If config file is invalid JSON.
     """
+    config_path_obj = Path(config_path)
+
+    if not config_path_obj.exists():
+        if _try_copy_example_config(config_path):
+            logger.info("Using example configuration")
+        else:
+            raise FileNotFoundError(
+                f"Configuration file not found: {config_path}. "
+                f"No example file available to copy."
+            )
+
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
-    except FileNotFoundError as exc:
-        raise FileNotFoundError(
-            f"Configuration file not found: {config_path}"
-        ) from exc
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in configuration file: {exc}") from exc
 
@@ -119,6 +157,40 @@ def validate_config(config):
         _validate_coordinate(i, coord)
 
 
+def _get_default_config():
+    """Get default configuration dictionary."""
+    return {
+        "loops": 3,
+        "wait_between_clicks": 1.0,
+        "wait_between_loops": 2.0,
+        "coordinates": [],
+    }
+
+
+def _load_existing_config(config_path):
+    """
+    Load existing config or return defaults if load fails.
+
+    Args:
+        config_path: Path to the configuration file.
+
+    Returns:
+        dict: Configuration dictionary.
+
+    Raises:
+        ValueError: If config file contains invalid JSON (not empty file).
+    """
+    try:
+        return load_config(config_path)
+    except FileNotFoundError:
+        return _get_default_config()
+    except ValueError as exc:
+        # Check if it's just an empty file
+        if "Expecting value" in str(exc):
+            return _get_default_config()
+        raise
+
+
 def save_coordinates_to_config(coordinates, config_path, merge=True):
     """
     Save captured coordinates to configuration file.
@@ -132,37 +204,12 @@ def save_coordinates_to_config(coordinates, config_path, merge=True):
         ValueError: If config file exists and contains invalid JSON.
         OSError: If file cannot be written.
     """
-    config = {}
-
     if merge:
-        try:
-            config = load_config(config_path)
-        except FileNotFoundError:
-            # File doesn't exist, will create new one
-            config = {
-                "loops": 3,
-                "wait_between_clicks": 1.0,
-                "wait_between_loops": 2.0,
-                "coordinates": [],
-            }
-        except (ValueError, json.JSONDecodeError) as exc:
-            # File exists but is empty or has invalid JSON - treat as new file
-            # Check if it's just an empty file (JSONDecodeError) vs truly invalid JSON
-            # load_config wraps JSONDecodeError in ValueError, so check the original exception
-            original_exc = exc.__cause__ if hasattr(exc, "__cause__") and exc.__cause__ else exc
-            if isinstance(original_exc, json.JSONDecodeError) and original_exc.msg == "Expecting value":
-                # Empty file - treat as new file
-                config = {
-                    "loops": 3,
-                    "wait_between_clicks": 1.0,
-                    "wait_between_loops": 2.0,
-                    "coordinates": [],
-                }
-            else:
-                # Truly invalid JSON - re-raise
-                raise ValueError(f"Invalid JSON in configuration file: {exc}") from exc
+        config = _load_existing_config(config_path)
+    else:
+        config = _get_default_config()
 
-    # Merge coordinates
+    # Ensure coordinates list exists
     if "coordinates" not in config:
         config["coordinates"] = []
 

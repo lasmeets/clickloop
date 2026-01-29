@@ -65,6 +65,43 @@ class TestLoadConfig:
         finally:
             Path(config_path).unlink()
 
+    def test_load_config_copies_example_file(self):
+        """Test that load_config copies example file if it exists."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "test_config.json"
+            example_path = Path(tmpdir) / "test_config.json.example"
+
+            # Create example file
+            example_config = {
+                "loops": 5,
+                "wait_between_clicks": 0.5,
+                "wait_between_loops": 1.0,
+                "coordinates": [{"monitor": 0, "x": 100, "y": 200}],
+            }
+            with open(example_path, "w", encoding="utf-8") as f:
+                json.dump(example_config, f)
+
+            # Config doesn't exist yet
+            assert not config_path.exists()
+
+            # Load config - should copy from example
+            config = load_config(str(config_path))
+
+            # Config should now exist and match example
+            assert config_path.exists()
+            assert config["loops"] == 5
+            assert config["wait_between_clicks"] == 0.5
+            assert len(config["coordinates"]) == 1
+
+    def test_load_config_missing_file_no_example(self):
+        """Test loading non-existent config with no example raises FileNotFoundError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "nonexistent.json"
+            # No example file created
+
+            with pytest.raises(FileNotFoundError, match="No example file available"):
+                load_config(str(config_path))
+
 
 class TestValidateConfig:
     """Tests for validate_config function."""
